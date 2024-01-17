@@ -1,0 +1,719 @@
+---
+title: "test"
+author: "Owen Dy"
+date: "2023-12-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(plotly)
+library(httr)
+library(dplyr)
+library(shiny)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(scales)
+library(bigchess)
+library(lubridate)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+
+    # Replace 'your_api_url_here' with the actual API endpoint for retrieving user data
+    api_url <- paste0("https://api.chess.com/pub/player/owej9023/games/archives")
+    
+    # Replace 'your_api_url_here' with the actual API endpoint for retrieving user data
+
+    # Make a GET request to the API
+    response <- GET(api_url)
+    
+    
+    # Get the content of the response
+    response_content <- content(response, "text")
+    
+    # Parse the JSON content
+    archives <- jsonlite::fromJSON(response_content)
+    
+    # Initialize an empty list to store dataframes
+    dataframes <- list()
+    print(archives)
+    # Loop through each archive URL and retrieve the data
+    archive_data<-list()
+    for (url in archives$archives) {
+      archive_response <- GET(url)
+      archive_content <- content(archive_response, "text", flatten = TRUE)
+      archive_data1 <- jsonlite::fromJSON(archive_content)
+      archive_data <- c(archive_data,archive_data1)
+    
+    }
+    
+    result_list <- list()
+    
+    combined_df <- bind_rows(archive_data)
+    combined_df <- combined_df %>% filter(grepl("Blitz", time_class, ignore.case = TRUE))
+
+    filtered_data <- combined_df %>% filter(rules == "chess")
+    filtered_data <- filtered_data %>% filter(rated == "TRUE")
+    
+    # Assuming filtered_data$pgn is a vector of PGN games
+    for (game in filtered_data$pgn) {
+      
+      # Concatenate the lines of the game
+      input_text <- paste(game, collapse = " ")
+      
+      # Use regex to extract values within square brackets
+      matches <- str_extract_all(input_text, "\\[(.*?)\\]")[[1]][1:21]
+      
+      # Store the result in the list
+      result_list <- c(result_list, list(matches))
+    }
+    
+    # Convert the list to a data frame
+    result_df <- do.call(rbind, result_list)
+    result_df <- as.data.frame(result_df)
+    result_df<-na.omit(result_df)
+    
+    for (i in seq_along(result_df[, 3])) {
+      # Extract the date string from the format "[Date "2020.12.08"]"
+      date_string <- gsub("\\[Date \"|\"\\]", "", result_df[i, 3])
+      
+      # Convert the extracted value to a Date object
+      #formatted_date <- as.Date(date_string, format = "%Y.%m.%d")
+      
+      # Replace the original value with the formatted date
+      result_df[i, 3] <- date_string
+    }
+    
+    for (i in seq_along(result_df[, 7])) {
+      # Extract the result string from the format '[Result "0-1"]' or '[Result "1/2-1/2"]'
+      result_string <- as.character(result_df[i, 7])
+      
+      # Extract the result using a modified regular expression
+      result_match <- regmatches(result_string, regexpr("\\d+/\\d+-\\d+/\\d+|\\d+-\\d+", result_string))[[1]]
+      
+      # Replace the original value with the extracted result
+      result_df[i, 7] <- result_match
+    }
+    
+    
+    for (i in seq_along(result_df[, 14])) {
+      # Extract the Elo rating string from the format '[BlackElo "845"]'
+      elo_string <- as.character(result_df[i, 14])
+      
+      # Extract all numeric values using regular expression
+      elo_matches <- regmatches(elo_string, gregexpr("\\d+", elo_string))[[1]]
+      
+      # Convert the extracted values to numeric
+      elo_numeric <- as.numeric(elo_matches)
+      
+      # Replace the original value with the numeric Elo rating(s)
+      result_df[i, 14] <- elo_numeric
+    }
+    
+    for (i in seq_along(result_df[, 15])) {
+      # Extract the Elo rating string from the format '[BlackElo "845"]'
+      elo_string <- as.character(result_df[i, 15])
+      
+      # Extract all numeric values using regular expression
+      elo_matches <- regmatches(elo_string, gregexpr("\\d+", elo_string))[[1]]
+      
+      # Convert the extracted values to numeric
+      elo_numeric <- as.numeric(elo_matches)
+      
+      # Replace the original value with the numeric Elo rating(s)
+      result_df[i, 15] <- elo_numeric
+    }
+    
+    # Assuming result_df is your data frame
+    for (i in seq_along(result_df[, 16])) {
+      time <- as.character(result_df[i, 16])
+      
+      # Extract numeric values using regular expression
+      times_numeric <- as.numeric(gsub("\\D", "", time))
+      
+      # Replace the original value with the numeric time(s)
+      result_df[i, 16] <- times_numeric
+    }
+    
+    result_df$V18 <- as.character(result_df$V18)
+    
+    for (i in seq_along(result_df[, 18])) {
+      time_string <- as.character(result_df[i, 18])
+      
+      # Extract time using regular expression
+      time_matches <- regmatches(time_string, regexpr("\\d{2}:\\d{2}:\\d{2}", time_string))[[1]]
+      
+      # Replace the original value with the numeric time
+      result_df[i, 18] <- time_matches
+    }
+    
+    
+    # Assuming result_df is your data frame
+    for (i in seq_along(result_df[, 20])) {
+      time_string <- as.character(result_df[i, 20])
+      
+      # Extract time using regular expression
+      time_matches <- regmatches(time_string, regexpr("\\d{2}:\\d{2}:\\d{2}", time_string))[[1]]
+      
+      # Replace the original value with the numeric time
+      result_df[i, 20] <- time_matches
+    }
+    
+    for (i in seq_along(result_df[, 5])) {
+      user_string <- as.character(result_df[i, 5])
+      
+      # Extract username using regular expression
+      extracted_user <- sub("\\[.*?\"(.*?)\"\\]", "\\1", user_string)
+      
+      # Replace the original value with the extracted username
+      result_df[i, 5] <- extracted_user
+    }
+    
+    for (i in seq_along(result_df[, 6])) {
+      user_string <- as.character(result_df[i, 6])
+      
+      # Extract username using regular expression
+      extracted_user <- sub("\\[.*?\"(.*?)\"\\]", "\\1", user_string)
+      
+      # Replace the original value with the extracted username
+      result_df[i, 6] <- extracted_user
+    }
+    
+    result_df <- as.data.frame(result_df)
+    result_df$V3 <- as.Date(result_df$V3, format = "%Y.%m.%d")
+    
+    result_df$day_of_week <- weekdays(result_df$V3)
+    result_df$day_of_week <- factor(result_df$day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+    
+    # Remove columns V17 and V21
+    result_df <- result_df %>%
+      select(-V17, -V21)
+    
+    # Mutate the dataframe to create the chess_username column
+    result_df <- result_df %>%
+      rowwise() %>%
+      mutate(
+        owej9023 = ifelse("owej9023" %in% c(V5, V6), as.numeric(ifelse("owej9023" %in% V5, V14, V15)), NA_real_)
+      )
+    
+    
+    
+    # Convert the column to numeric if needed
+    result_df$owej9023 <- as.numeric(result_df$owej9023)
+    
+    # Convert 'V14' to numeric (assuming it contains numeric values)
+    result_df$V14 <- as.numeric(result_df$V14)
+    result_df$V15 <- as.numeric(result_df$V15)
+    result_df$V16 <- as.numeric(result_df$V16)
+    
+    # Convert 'V18' to character
+    # Convert 'V18' to hms object
+    
+    result_df$V18 <- as.character(result_df$V18)
+    #result_df$V18 <- hms(result_df$V18)
+    #result_df$V18 <- replace_na(result_df$V18, hms("00:00:00"))
+    
+    result_df$V20 <- as.character(result_df$V20)
+    #result_df$V20 <- hms(result_df$V20)
+    #result_df$V20 <- replace_na(result_df$V20, hms("00:00:00"))
+    
+    # Extract the hour from the datetime column
+    result_df$hour <- hour(result_df$V18)
+    result_df$hourend <- hour(result_df$V20)
+    result_df$game_number <- 1:nrow(result_df)
+    
+    # Filter data for the last 1000 games and where V16 is equal to 180
+    recent_games_data <- tail(result_df[, 1000)
+    
+    recent_games_data_games_per_day <- recent_games_data %>%
+      group_by(V3) %>%
+      mutate(
+        total_change_elo = sum(owej9023 - lag(owej9023, default = first(owej9023))),
+        total_games_per_day = n(),
+        group_id = ceiling(row_number() / 10)
+      ) %>%
+      ungroup()
+    
+    result_df <- result_df %>%
+    group_by(V3) %>%
+    mutate(
+      total_change_elo = sum(owej9023 - lag(owej9023, default = first(owej9023))),
+      total_games_per_day = n(),
+      group_id = ceiling(row_number() / 10)
+    ) %>%
+    ungroup()
+    
+    summary_data <- recent_games_data_games_per_day %>%
+      group_by(day_of_week) %>%
+      summarize(
+        mean_elo_change = mean(total_change_elo),
+        sd_elo_change = sd(total_change_elo),
+        count = n()
+      )
+    
+    # Calculate standard error of the mean (SEM) for Elo change
+    summary_data$sem_elo_change <- summary_data$sd_elo_change / sqrt(summary_data$count)
+```
+
+```{r}
+
+chess_username <- "owej9023"
+
+desired_rows<-1000
+
+# Replace 'your_api_url_here' with the actual API endpoint for retrieving user data
+api_url <- paste0("https://api.chess.com/pub/player/",chess_username,"/games/archives")
+
+
+# Make a GET request to the API
+response <- GET(api_url)
+
+
+# Get the content of the response
+response_content <- content(response, "text")
+
+# Parse the JSON content
+archives <- jsonlite::fromJSON(response_content)
+
+# Initialize an empty list to store dataframes
+dataframes <- list()
+# Loop through each archive URL and retrieve the data
+archive_data<-list()
+for (url in archives$archives) {
+  archive_response <- GET(url)
+  archive_content <- content(archive_response, "text", flatten = TRUE)
+  archive_data1 <- jsonlite::fromJSON(archive_content)
+  archive_data <- c(archive_data,archive_data1)
+
+}
+
+result_list <- list()
+
+combined_df <- bind_rows(archive_data)
+combined_df <- combined_df %>% filter(grepl("Rapid", time_class, ignore.case = TRUE))
+
+filtered_data <- combined_df %>% filter(rules == "chess")
+filtered_data <- filtered_data %>% filter(rated == "TRUE")
+
+# Assuming filtered_data$pgn is a vector of PGN games
+for (game in filtered_data$pgn) {
+  
+  # Concatenate the lines of the game
+  input_text <- paste(game, collapse = " ")
+  
+  # Use regex to extract values within square brackets
+  matches <- str_extract_all(input_text, "\\[(.*?)\\]")[[1]][1:21]
+  
+  # Store the result in the list
+  result_list <- c(result_list, list(matches))
+}
+
+# Convert the list to a data frame
+result_df <- do.call(rbind, result_list)
+result_df <- as.data.frame(result_df)
+result_df<-na.omit(result_df)
+# Shrink the dataframe to the desired number of rows
+result_df <- result_df[(nrow(result_df) - desired_rows + 1):nrow(result_df), ]
+
+for (i in seq_along(result_df[, 3])) {
+  # Extract the date string from the format "[Date "2020.12.08"]"
+  date_string <- gsub("\\[Date \"|\"\\]", "", result_df[i, 3])
+  
+  # Convert the extracted value to a Date object
+  #formatted_date <- as.Date(date_string, format = "%Y.%m.%d")
+  
+  # Replace the original value with the formatted date
+  result_df[i, 3] <- date_string
+}
+
+for (i in seq_along(result_df[, 7])) {
+  # Extract the result string from the format '[Result "0-1"]' or '[Result "1/2-1/2"]'
+  result_string <- as.character(result_df[i, 7])
+  
+  # Extract the result using a modified regular expression
+  result_match <- regmatches(result_string, regexpr("\\d+/\\d+-\\d+/\\d+|\\d+-\\d+", result_string))[[1]]
+  
+  # Replace the original value with the extracted result
+  result_df[i, 7] <- result_match
+}
+
+
+for (i in seq_along(result_df[, 14])) {
+  # Extract the Elo rating string from the format '[BlackElo "845"]'
+  elo_string <- as.character(result_df[i, 14])
+  
+  # Extract all numeric values using regular expression
+  elo_matches <- regmatches(elo_string, gregexpr("\\d+", elo_string))[[1]]
+  
+  # Convert the extracted values to numeric
+  elo_numeric <- as.numeric(elo_matches)
+  
+  # Replace the original value with the numeric Elo rating(s)
+  result_df[i, 14] <- elo_numeric
+}
+
+for (i in seq_along(result_df[, 15])) {
+  # Extract the Elo rating string from the format '[BlackElo "845"]'
+  elo_string <- as.character(result_df[i, 15])
+  
+  # Extract all numeric values using regular expression
+  elo_matches <- regmatches(elo_string, gregexpr("\\d+", elo_string))[[1]]
+  
+  # Convert the extracted values to numeric
+  elo_numeric <- as.numeric(elo_matches)
+  
+  # Replace the original value with the numeric Elo rating(s)
+  result_df[i, 15] <- elo_numeric
+}
+
+# Assuming result_df is your data frame
+for (i in seq_along(result_df[, 16])) {
+  time <- as.character(result_df[i, 16])
+  
+  # Extract numeric values using regular expression
+  times_numeric <- as.numeric(gsub("\\D", "", time))
+  
+  # Replace the original value with the numeric time(s)
+  result_df[i, 16] <- times_numeric
+}
+
+result_df$V18 <- as.character(result_df$V18)
+
+for (i in seq_along(result_df[, 18])) {
+  time_string <- as.character(result_df[i, 18])
+  
+  # Extract time using regular expression
+  time_matches <- regmatches(time_string, regexpr("\\d{2}:\\d{2}:\\d{2}", time_string))[[1]]
+  
+  # Replace the original value with the numeric time
+  result_df[i, 18] <- time_matches
+}
+
+
+# Assuming result_df is your data frame
+for (i in seq_along(result_df[, 20])) {
+  time_string <- as.character(result_df[i, 20])
+  
+  # Extract time using regular expression
+  time_matches <- regmatches(time_string, regexpr("\\d{2}:\\d{2}:\\d{2}", time_string))[[1]]
+  
+  # Replace the original value with the numeric time
+  result_df[i, 20] <- time_matches
+}
+
+for (i in seq_along(result_df[, 5])) {
+  user_string <- as.character(result_df[i, 5])
+  
+  # Extract username using regular expression
+  extracted_user <- sub("\\[.*?\"(.*?)\"\\]", "\\1", user_string)
+  
+  # Replace the original value with the extracted username
+  result_df[i, 5] <- extracted_user
+}
+
+for (i in seq_along(result_df[, 6])) {
+  user_string <- as.character(result_df[i, 6])
+  
+  # Extract username using regular expression
+  extracted_user <- sub("\\[.*?\"(.*?)\"\\]", "\\1", user_string)
+  
+  # Replace the original value with the extracted username
+  result_df[i, 6] <- extracted_user
+}
+
+result_df <- as.data.frame(result_df)
+result_df$V3 <- as.Date(result_df$V3, format = "%Y.%m.%d")
+
+result_df$day_of_week <- weekdays(result_df$V3)
+result_df$day_of_week <- factor(result_df$day_of_week, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"))
+
+# Remove columns V17 and V21
+result_df <- result_df %>%
+  select(-V17, -V21)
+
+# Mutate the dataframe to create the chess_username column
+result_df <- result_df %>%
+  rowwise() %>%
+  mutate(
+    chess_username = ifelse(chess_username %in% c(V5, V6), as.numeric(ifelse(chess_username %in% V5, V14, V15)), NA_real_)
+  )
+
+
+
+# Convert the column to numeric if needed
+result_df$chess_username <- as.numeric(result_df$chess_username)
+
+# Convert 'V14' to numeric (assuming it contains numeric values)
+result_df$V14 <- as.numeric(result_df$V14)
+result_df$V15 <- as.numeric(result_df$V15)
+result_df$V16 <- as.numeric(result_df$V16)
+
+# Convert 'V18' to character
+# Convert 'V18' to hms object
+
+result_df$V18 <- as.character(result_df$V18)
+result_df$V18 <- hms(result_df$V18)
+result_df$V18 <- replace_na(result_df$V18, hms("00:00:00"))
+
+result_df$V20 <- as.character(result_df$V20)
+result_df$V20 <- hms(result_df$V20)
+result_df$V20 <- replace_na(result_df$V20, hms("00:00:00"))
+
+# Extract the hour from the datetime column
+result_df$hour <- hour(result_df$V18)
+result_df$hourend <- hour(result_df$V20)
+result_df$game_number <- 1:nrow(result_df)
+
+# Filter data for the last 1000 games
+recent_games_data <- tail(result_df[4, ], 1000)
+
+recent_games_data_games_per_day <- recent_games_data %>%
+  group_by(V3) %>%
+  mutate(
+    total_change_elo = sum(chess_username - lag(chess_username, default = first(chess_username))),
+    total_games_per_day = n(),
+    group_id = ceiling(row_number() / 10)
+  ) %>%
+  ungroup()
+
+summary_data <- recent_games_data_games_per_day %>%
+  group_by(day_of_week) %>%
+  summarize(
+    mean_elo_change = mean(total_change_elo),
+    sd_elo_change = sd(total_change_elo),
+    count = n()
+  )
+
+# Calculate standard error of the mean (SEM) for Elo change
+summary_data$sem_elo_change <- summary_data$sd_elo_change / sqrt(summary_data$count)
+
+
+# Create a new column for the week number
+recent_games_data$week_number <- as.numeric(format(as.Date(recent_games_data$V3), "%U"))
+
+# Aggregate by week
+summary_data_week <- recent_games_data %>%
+  group_by(week_number) %>%
+  summarize(
+    mean_eweek_elo = mean(chess_username),  # Change to your actual column name
+    sd_eweek_elo = sd(chess_username),  # Change to your actual column name
+    count = n()
+  )
+
+# Calculate standard error of the mean (SEM) for each week
+summary_data_week$sem_eweek_elo <- summary_data_week$sd_eweek_elo / sqrt(summary_data_week$count)
+
+
+
+# Assuming you have a date column called date_column (replace it with your actual column name)
+# Create a new column for the month
+recent_games_data$month <- factor(format(as.Date(recent_games_data$V3), "%B"), 
+                                  levels = month.name, ordered = TRUE)
+
+# Aggregate by month
+summary_data_month <- recent_games_data %>%
+  group_by(month) %>%
+  summarize(
+    mean_emon_elo = mean(chess_username),  # Change to your actual column name
+    sd_emon_elo = sd(chess_username),  # Change to your actual column name
+    count = n()
+  )
+
+# Calculate standard error of the mean (SEM) for each month
+summary_data_month$sem_emon_elo <- summary_data_month$sd_emon_elo / sqrt(summary_data_month$count)
+
+
+
+```
+
+
+#code to get each move of each game ever played, where one game is one value in the list gamemove
+```{r}
+gamemove <- list()
+
+for (game in filtered_data$pgn) {
+  start_word <- 'Link \\"([^\\"]+)"'
+  end_word <- '\\[\\[1\\]\\]'
+  
+  # Extract the link using regex
+  link_match <- regmatches(game, regexpr(start_word, game))
+  
+  if (length(link_match) > 0) {
+    link <- link_match[[1]]
+    
+    # Split the string based on the start and end words
+    split_string <- strsplit(game, paste0(link, "|", end_word))
+    
+    # Extract the text between the start and end words
+    isolated_text <- trimws(split_string[[1]][2])
+    
+    # Remove move time stamps (clk) from the moves
+    isolated_text <- gsub("\\{\\[%clk [^\\}]+\\]\\}", "", isolated_text)
+    
+    # Split the text into lines
+    lines <- strsplit(isolated_text, "\n")[[1]]
+    
+    # Filter lines starting with a number (indicating a move)
+    move_lines <- grep("^\\d+\\.", lines, value = TRUE)
+    
+    move_lines <- gsub("\\ \\d+\\.\\.\\.\\ ","", move_lines)
+    
+    move_lines <- gsub("\\  "," ", move_lines)
+    
+    move_lines <- gsub("\\d+-\\d+","", move_lines)
+    move_lines <- gsub("\\d//\\d","", move_lines)
+    move_lines <- gsub("\\d*\\.","", move_lines)
+
+    
+    # Append moves to the gamemove list
+    gamemove <- c(gamemove, list(move_lines))
+  }
+}
+
+# Print the gamemove list
+#print(length(gamemove))
+#print(gamemove[1])
+#print(gamemove[6])
+
+```
+
+# A function to get a numeric evaulation of how well the players played throughout the game. I used math created by people who know more about chess than i do. I also took some shortcuts to make the code smaller and run faster. This is at the expense of accuracy.
+```{r}
+# Function to calculate Centipawn Loss (CPL)
+calculate_CPL <- function(actual_move_eval, best_move_eval) {
+  if (any(is.nan(c(actual_move_eval, best_move_eval)))) {
+    CPL <- 0
+  } else {
+    CPL <- best_move_eval - actual_move_eval
+  }
+  return(CPL)
+}
+
+
+# Function to calculate Move Quality Index (MQI)
+calculate_MQI <- function(CPL_values) {
+  # Check for NaN values in CPL_values
+  if (any(is.nan(CPL_values))) {
+    MQI <- 0
+  } else {
+    # Calculate the square of each CPL value
+    squared_CPL <- CPL_values^2
+    
+    # Calculate the mean of squared CPL values
+    mean_squared_CPL <- mean(squared_CPL)
+    
+    # Take the square root to obtain MQI
+    MQI <- sqrt(mean_squared_CPL)
+    if (is.null(MQI||is.nan(MQI))){MQI<-0}
+  }
+  return(MQI)
+}
+
+
+# Example usage:
+# Suppose actual_eval and best_eval are vectors of actual and best move evaluations
+actual_eval <- c(NULL, 0, -10, -5, 8)
+best_eval <- c(30, -30, 10, 5, -8)
+
+# Calculate CPL values
+CPL_values <- calculate_CPL(actual_eval, best_eval)
+
+# Calculate MQI
+MQI_result <- calculate_MQI(CPL_values)
+
+# Print the results
+cat("Centipawn Loss (CPL):", CPL_values, "\n")
+cat("Move Quality Index (MQI):", MQI_result, "\n")
+```
+
+# theoretically this code should give a rating to every game. However, it is slow and it occasionally gives scores of NA. I think this is because of short games that are entirely engine moves. However, further investigation is required
+```{r}
+library(chess)
+library(magrittr)
+
+# Assuming gamemove is a list of moves
+# Initialize empty columns for MQI for white and black
+result_df$MQI_white <- NA
+result_df$MQI_black <- NA
+
+# Initialize separate counters for white and black moves
+count_white <- 1
+count_black <- 1
+
+# Initialize variable to keep track of the current player's color
+current_player <- "white"
+
+for (chessgame in gamemove) {
+  game0 <- analyze_game(engine_path, san = chessgame, quiet = TRUE)
+  
+  for (i in game0) {
+    curpos <- i$curpos_lan
+    bestmove <- i$bestmove
+    
+    # Assuming curpos is a string and you want to replace characters after the last space
+    curpos2 <- sub(" .*\\K", paste(" ", bestmove), curpos, perl = TRUE)
+    
+    # Convert curpos2 to a character vector
+    curpos2 <- as.character(curpos2)
+    
+    # Use UCI engine to analyze the position
+    output <- uci_engine(engine_path) %>%
+      uci_ucinewgame() %>%
+      uci_position(moves = curpos2) %>%
+      uci_go(depth = 10) %>%
+      uci_quit()
+    
+    # Store the output in a list
+    output <- as.character(output[4])
+    pattern <- "(mate -?\\d+(\\.\\d+)?|cp -?\\d+(\\.\\d+)?)"
+    score <- str_extract(output, pattern)
+    pattern2 <- "(?:cp (-?\\d+))|(?:mate (\\d+))"
+    
+    # Function to transform "mate" into 0 and extract the number
+    extract_number <- function(match) {
+      if (!is.na(match[2])) {
+        return(as.integer(match[2]))
+      } else if (!is.na(match[3])) {
+        return(0)
+      }
+    }
+    
+    # Apply the regex pattern and transformation function
+    result1 <- extract_number(str_match(score, pattern2))
+    
+    # Calculate CPL
+    CPL_values <- calculate_CPL(i$score, result1)
+    
+    # Calculate MQI
+    MQI_result <- calculate_MQI(CPL_values)
+    
+    # Assign MQI to the corresponding column based on player color
+    if (current_player == "white") {
+      result_df$MQI_white[count_white] <- MQI_result
+      count_white <- count_white + 1
+    } else {
+      result_df$MQI_black[count_black] <- MQI_result
+      count_black <- count_black + 1
+    }
+    
+    # Switch player's color for the next move
+    current_player <- ifelse(current_player == "white", "black", "white")
+  }
+}
+
+
+    #count <- count + 1
+```
+
+```{r}
+
+
+```
