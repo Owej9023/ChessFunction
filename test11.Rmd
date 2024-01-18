@@ -22,7 +22,7 @@ library(bigchess)
 
 ```{r}
 
-chess_username <- "Imafishea"
+chess_username <- "Owej9023"
 desired_rows<-10000000
 # Replace 'your_api_url_here' with the actual API endpoint for retrieving user data
 api_url <- paste0("https://api.chess.com/pub/player/",chess_username,"/games/archives")
@@ -53,7 +53,7 @@ for (url in archives$archives) {
 result_list <- list()
 
 combined_df <- bind_rows(archive_data)
-combined_df <- combined_df %>% filter(grepl("Rapid", time_class, ignore.case = TRUE))
+combined_df <- combined_df %>% filter(grepl("Daily", time_class, ignore.case = TRUE))
 
 filtered_data <- combined_df %>% filter(rules == "chess")
 filtered_data <- filtered_data %>% filter(rated == "TRUE")
@@ -397,9 +397,67 @@ if (tolower(input$ChessGameType) == 'rapid'){
 }
 
 if (tolower(input$ChessGameType) == 'blitz'){
-  set_value<-"03:00.0"}
+  for (value in combined_df$time_control){
+    if (value == '180'){
+      set_value <- "3:00.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+    if (value == '180+2'){
+      set_value<-"3:00.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-2
+    }
+    if (value == '300'){
+      set_value<-"5:00.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+    if (value == '300+5'){
+      set_value<-"5:00.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-5
+    }
+    if (value == '300+2'){
+      set_value<-"5:00.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-2
+    }
+  }
+}
+
 if (tolower(input$ChessGameType) == 'bullet'){
-  set_value<-"01:00.0"}
+  for (value in combined_df$time_control){
+    if (value == '60'){
+      set_value <- "1:00.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+    if (value == '60+1'){
+      set_value<-"1:00.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-1
+    }
+    if (value == '120+1'){
+      set_value<-"2:00.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-1
+    }
+    if (value == '30'){
+      set_value<-"00:30.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+    if (value == '20+1'){
+      set_value<-"00:20.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-1
+    }
+  }
+}
+
+
+# NEED TO THINK UP A DIFFERENT WAY TO WORK WITH GAMES THAT SPAWN MULTIPLE DAYS
 if (tolower(input$ChessGameType) == 'daily'){
 }
 
