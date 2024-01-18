@@ -362,7 +362,40 @@ ggplot(recent_games_data_games_per_day, aes(y = total_change_elo, x = total_game
 #define all gametypes here and their timevalues
 
 if (tolower(input$ChessGameType) == 'rapid'){
-  set_value <- "10:00.0"}
+  for (value in combined_df$time_control){
+    if (value == '900+15'){
+      set_value <- "15:00.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-15
+    }
+    if (value == '600+5'){
+      set_value<-"10:00.0"
+      incriment<-TRUE
+      selectedIncrimentTime<-5
+    }
+    if (value == '1800'){
+      set_value<-"30:00.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+    if (value == '1200'){
+      set_value<-"20:00.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+    if (value == '3600'){
+      set_value<-"60:00.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+    if (value == '600'){
+      set_value<-"10:00.0"
+      incriment<-FALSE
+      selectedIncrimentTime<-0
+    }
+  }
+}
+
 if (tolower(input$ChessGameType) == 'blitz'){
   set_value<-"03:00.0"}
 if (tolower(input$ChessGameType) == 'bullet'){
@@ -371,7 +404,11 @@ if (tolower(input$ChessGameType) == 'daily'){
 }
 
 
+```
 
+```{r}
+
+#NEED TO ADAPT FOR INCRIMENT
 
 # this extracts all the times that each player clicked on a piece starting with white then black
 # now you need to write a function that turns the value into a number of seconds spent per move
@@ -421,6 +458,9 @@ for (value in result_list_times[1]){
   for (value2 in matches){
     timeRemaining<-subtract_time(set_value,value2)
     timeRemaining<-round(timeRemaining,digits = 1)
+    if (incriment == TRUE){
+      timeRemaining<-timeRemaining+selectedIncrimentTime
+    }
     timepermove<-append(timepermove,timeRemaining)
   }
 }
