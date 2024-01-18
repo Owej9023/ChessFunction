@@ -53,7 +53,7 @@ for (url in archives$archives) {
 result_list <- list()
 
 combined_df <- bind_rows(archive_data)
-combined_df <- combined_df %>% filter(grepl("Daily", time_class, ignore.case = TRUE))
+combined_df <- combined_df %>% filter(grepl("Bullet", time_class, ignore.case = TRUE))
 
 filtered_data <- combined_df %>% filter(rules == "chess")
 filtered_data <- filtered_data %>% filter(rated == "TRUE")
@@ -360,6 +360,7 @@ ggplot(recent_games_data_games_per_day, aes(y = total_change_elo, x = total_game
 
 ```{r}
 #define all gametypes here and their timevalues
+#try to see if you can use combined_df$time_control instead of hard coding everything
 
 if (tolower(input$ChessGameType) == 'rapid'){
   for (value in combined_df$time_control){
@@ -457,20 +458,21 @@ if (tolower(input$ChessGameType) == 'bullet'){
 }
 
 
-# NEED TO THINK UP A DIFFERENT WAY TO WORK WITH GAMES THAT SPAWN MULTIPLE DAYS
-if (tolower(input$ChessGameType) == 'daily'){
-}
+#if (tolower(input$ChessGameType) == 'daily'){}
+  #Possible to ignore daily  games for the analysis of time spent per move as the amount of time they acutally have and the time spent on the game are not the same. 
+  #Example: the vast majority of players with a 24 hour timer per move will not spend up to 24 hours on that move. Therefore I do not find it significant to look at time spent per move on daily games.
 
+#NEED TO CATCH CUSTOM GAMES AND REMOVE THEM FROM ANALYSIS BECAUSE I DONT WANT WANT TO DEAL WITH CREATING A FUNCTION TO CATERGORIZE CUSTOM GAMES.
 
 ```
 
 ```{r}
 
-#NEED TO ADAPT FOR INCRIMENT
 
 # this extracts all the times that each player clicked on a piece starting with white then black
 # now you need to write a function that turns the value into a number of seconds spent per move
 #then seperate the time per move into each players time per move.
+
 
 result_list_times <- list()  # Initialize an empty list before the loop
 for (game in filtered_data$pgn) {
