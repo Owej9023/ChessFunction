@@ -6,6 +6,6 @@ This is currenly in the early stages of development and I am working on the more
 
 Both versions of test are templates that I use to test new features for the Rshiny application.
 
-Server.R is where all the logic is held for the application. It is highly reccomended that you try any new features in test before applying them to the server.
+Server.R is where all the logic is held for the application. It is highly reccomended that you try any new features in either version of test before applying them to the server.
 
 Ui.R is where the Ui for the application is. This is not my area of expertise so I mostly use it as a to-do list.
