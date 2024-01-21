@@ -1,0 +1,14 @@
+---
+title: "final"
+author: "Owen Dy"
+date: "2024-01-20"
+output: html_document
+---
+
+```{r}
+#Break down games into 3 seperate parts, Opening, middlegame, endgame
+#Opening is defined as any book moves + any other moves up until move 8* this number is subject to change
+#middle game is defined by a gamestate that has a total number of points of material greater than 20 points of material that is not the opening.
+#end game is defined by a game state with less than 20 points of materical
+
+```

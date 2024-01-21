@@ -362,39 +362,11 @@ ggplot(recent_games_data_games_per_day, aes(y = total_change_elo, x = total_game
 #define all gametypes here and their timevalues
 #try to see if you can use combined_df$time_control instead of hard coding everything
 
-if (tolower(input$ChessGameType) == 'rapid'){
-  for (value in combined_df$time_control){
-    if (value == '900+15'){
-      set_value <- "15:00.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-15
-    }
-    if (value == '600+5'){
-      set_value<-"10:00.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-5
-    }
-    if (value == '1800'){
-      set_value<-"30:00.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-    if (value == '1200'){
-      set_value<-"20:00.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-    if (value == '3600'){
-      set_value<-"60:00.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-    if (value == '600'){
-      set_value<-"10:00.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-  }
+for (value in combined_df$time_control){
+  #code to iteratively get the set value and set the incrimet
+  set_value <- ""
+    incriment<-TRUE
+    selectedIncrimentTime<-15
 }
 
 if (tolower(input$ChessGameType) == 'blitz'){
@@ -462,12 +434,11 @@ if (tolower(input$ChessGameType) == 'bullet'){
   #Possible to ignore daily  games for the analysis of time spent per move as the amount of time they acutally have and the time spent on the game are not the same. 
   #Example: the vast majority of players with a 24 hour timer per move will not spend up to 24 hours on that move. Therefore I do not find it significant to look at time spent per move on daily games.
 
-#NEED TO CATCH CUSTOM GAMES AND REMOVE THEM FROM ANALYSIS BECAUSE I DONT WANT WANT TO DEAL WITH CREATING A FUNCTION TO CATERGORIZE CUSTOM GAMES.
 
 ```
 
 ```{r}
-
+#NEED TO ADJUST CODE BELOW SO THAT IT CAN WORK WITH THE FUNCTION ABOVE
 
 # this extracts all the times that each player clicked on a piece starting with white then black
 # now you need to write a function that turns the value into a number of seconds spent per move

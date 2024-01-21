@@ -14,7 +14,7 @@
 #Blunder %
 #extract time spent per move as a list
 #breakdown time spent per move
-#implement a system to distinguish the 23 unqiue types of games on chess.com
+#implement a system to distinguish the 23 unique types of games on chess.com
 
 
 #To Do Reasonably Easily
