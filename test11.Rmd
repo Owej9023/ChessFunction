@@ -14,6 +14,8 @@ library(shiny)
 library(stringr)
 library(tidyr)
 library(ggplot2)
+library(chron)
+
 library(scales)
 library(lubridate)
 library(bigchess)
@@ -363,71 +365,31 @@ ggplot(recent_games_data_games_per_day, aes(y = total_change_elo, x = total_game
 #try to see if you can use combined_df$time_control instead of hard coding everything
 
 for (value in combined_df$time_control){
-  #code to iteratively get the set value and set the incrimet
-  set_value <- ""
-    incriment<-TRUE
-    selectedIncrimentTime<-15
+  # Split the string based on the '+'
+  split_strings <- strsplit(value, "\\+")[[1]]
+  
+  if (length(split_strings) == 2) {
+    # If there are two values, set selectedIncriment to the second value
+    incriment<- TRUE
+    selectedIncriment <- as.numeric(split_strings[2])
+    #print(selectedIncriment)
+  } else {
+    incriment <- FALSE
+    # If there is only one value, use a default incriment
+    #print(Length_of_Game_For_Each_Player)
+    selectedIncriment<-0
+  }
+
+  Length_of_Game_For_Each_Player<- as.numeric(split_strings[1])
+  # Convert minutes to HH:MM format
+  time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
+  
+  set_value <- time_in_hhmm
+  print(set_value)
+  print(selectedIncriment)
 }
 
-if (tolower(input$ChessGameType) == 'blitz'){
-  for (value in combined_df$time_control){
-    if (value == '180'){
-      set_value <- "3:00.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-    if (value == '180+2'){
-      set_value<-"3:00.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-2
-    }
-    if (value == '300'){
-      set_value<-"5:00.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-    if (value == '300+5'){
-      set_value<-"5:00.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-5
-    }
-    if (value == '300+2'){
-      set_value<-"5:00.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-2
-    }
-  }
-}
 
-if (tolower(input$ChessGameType) == 'bullet'){
-  for (value in combined_df$time_control){
-    if (value == '60'){
-      set_value <- "1:00.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-    if (value == '60+1'){
-      set_value<-"1:00.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-1
-    }
-    if (value == '120+1'){
-      set_value<-"2:00.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-1
-    }
-    if (value == '30'){
-      set_value<-"00:30.0"
-      incriment<-FALSE
-      selectedIncrimentTime<-0
-    }
-    if (value == '20+1'){
-      set_value<-"00:20.0"
-      incriment<-TRUE
-      selectedIncrimentTime<-1
-    }
-  }
-}
 
 
 #if (tolower(input$ChessGameType) == 'daily'){}
