@@ -361,9 +361,7 @@ ggplot(recent_games_data_games_per_day, aes(y = total_change_elo, x = total_game
 
 
 ```{r}
-#define all gametypes here and their timevalues
-#try to see if you can use combined_df$time_control instead of hard coding everything
-
+#this code gets the time of each game and the incriment for each game
 for (value in combined_df$time_control){
   # Split the string based on the '+'
   split_strings <- strsplit(value, "\\+")[[1]]
@@ -376,7 +374,6 @@ for (value in combined_df$time_control){
   } else {
     incriment <- FALSE
     # If there is only one value, use a default incriment
-    #print(Length_of_Game_For_Each_Player)
     selectedIncriment<-0
   }
 
@@ -385,28 +382,15 @@ for (value in combined_df$time_control){
   time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
   
   set_value <- time_in_hhmm
-  print(set_value)
-  print(selectedIncriment)
+  #print(set_value)
+  #rint(selectedIncriment)
 }
 
-
-
-
-#if (tolower(input$ChessGameType) == 'daily'){}
-  #Possible to ignore daily  games for the analysis of time spent per move as the amount of time they acutally have and the time spent on the game are not the same. 
+  #I Ignore daily  games for the analysis of time spent per move as the amount of time they acutally have and the time spent on the game are not the same. 
   #Example: the vast majority of players with a 24 hour timer per move will not spend up to 24 hours on that move. Therefore I do not find it significant to look at time spent per move on daily games.
 
 
-```
-
-```{r}
-#NEED TO ADJUST CODE BELOW SO THAT IT CAN WORK WITH THE FUNCTION ABOVE
-
-# this extracts all the times that each player clicked on a piece starting with white then black
-# now you need to write a function that turns the value into a number of seconds spent per move
-#then seperate the time per move into each players time per move.
-
-
+# This code Gets all the indiviudal time stamps for each move made in game
 result_list_times <- list()  # Initialize an empty list before the loop
 for (game in filtered_data$pgn) {
   # Concatenate the lines of the game
@@ -425,14 +409,16 @@ for (game in filtered_data$pgn) {
 }
 
 
-
+#This code transforms the above code into useablee formats
 result_df_time <- do.call(rbind, result_list_times)
 result_df_time <- as.data.frame(result_df_time)
 result_df_time<-na.omit(result_df_time)
+```
 
-#if input$gametype = Rapid
+```{r}
+#create a function that gets the amount of time spent per move
 subtract_time <- function(set_value, variable) {
-  set_time <- as.POSIXct(set_value, format = "%M:%S")
+  set_time <- as.POSIXct(set_value, format = "%M:%OS")
   set_time<-as.numeric(set_time)
   variable_time <- as.POSIXct(variable, format = "%M:%OS")
   variable_time<-as.numeric(variable_time)
@@ -443,34 +429,49 @@ subtract_time <- function(set_value, variable) {
 
   return(result_time)
 }
-
-timepermove<-list()
-#if game == Rapid
-for (value in result_list_times[1]){
+#print(result_list_times[1])
+set_value<-"01:00"
+count<-0
+timepermove <- list()
+for (value in result_list_times[1]) {
   matches <- str_extract_all(value, '\\d+\\d+:\\d+(?:\\.\\d+|)')
-  for (value2 in matches){
-    timeRemaining<-subtract_time(set_value,value2)
+
+  for (val in 1:length(matches)) {
+    m2<-as.character(matches[val][1])
+    NewMatches <- as.POSIXct(m2, format = "%M:%OS")
+    timeRemaining<-subtract_time(set_value,NewMatches)
+    setvalue<-m2
     timeRemaining<-round(timeRemaining,digits = 1)
-    if (incriment == TRUE){
-      timeRemaining<-timeRemaining+selectedIncrimentTime
-    }
     timepermove<-append(timepermove,timeRemaining)
   }
 }
 
-count <- 2
+
+count <- 0
 blacktimepermove<-list()
 whitetimepermove<-list()
 for (value in timepermove){
   count <- count +1
   if (count %% 2 == 0){
     #get black move
-    blacktimepermove<-c(blacktimepermove,value)
+    if (length(blacktimepermove != 0)){
+      blackcount<-1
+      blacktimepermove<-c(blacktimepermove,as.integer(value)-as.integer(blacktimepermove[blackcount]))
+      print(blacktimepermove)
+      blackcount<-blackcount+1
+    }
+    else{
+      blacktimepermove<-c(blacktimepermove,value)
+    }
   }
   else{
     #get white move
-    whitetimepermove<-c(whitetimepermove,value)
+    whitetimepermove<-c(whitetimepermove,(value))
   }
 }
+#the code above is trying to get the amount of time spent per move
+#currently it is trying its best
+#However, it is not rounding to the nearest tenth
+#it is also not using the correct starting values for the black pieces
 
 ```
