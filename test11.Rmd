@@ -450,14 +450,18 @@ for (value in result_list_times[1]) {
 count <- 0
 blacktimepermove<-list()
 whitetimepermove<-list()
+blackcount<-1
 for (value in timepermove){
   count <- count +1
   if (count %% 2 == 0){
+    #print(value)
     #get black move
     if (length(blacktimepermove != 0)){
-      blackcount<-1
-      blacktimepermove<-c(blacktimepermove,as.integer(value)-as.integer(blacktimepermove[blackcount]))
-      print(blacktimepermove)
+      blacktimepermove<-c(blacktimepermove,value)
+      
+      #blacktimepermove<-c(blacktimepermove,((value))-(blacktimepermove[blackcount]))
+      #print(value)
+      #print(blacktimepermove)
       blackcount<-blackcount+1
     }
     else{
@@ -469,9 +473,25 @@ for (value in timepermove){
     whitetimepermove<-c(whitetimepermove,(value))
   }
 }
+```
+
+```{r}
+storedTotal<-0
+Value1<-as.numeric(blacktimepermove[1])
+
+for (value in blacktimepermove){
+  if (value != as.numeric(blacktimepermove[1])){
+    #print(value)
+    #print(Value1)
+    NewTotal<-value-Value1
+    Value1<-value
+    print(NewTotal)
+
+  }
+}
 #the code above is trying to get the amount of time spent per move
 #currently it is trying its best
-#However, it is not rounding to the nearest tenth
+#However, i do not think it is rounding to the nearest tenth
 #it is also not using the correct starting values for the black pieces
 
 ```
