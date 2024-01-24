@@ -454,21 +454,63 @@ for (value in result_list_times) {
 
 
 ```{r}
-for (value in timepermove){
-  print(value)
-}
+count<-0
+whitetimepermove <- list()
+blacktimepermove <- list()
+blackcount <- 0
+Value1<-as.numeric(timepermove[[1]][2])
+Value2<-as.numeric(timepermove[[1]][1])
 
+
+for (i in 1:length(timepermove[1:2])) {
+  individualList <- timepermove[[i]]
+  
+  whitetime <- list()
+  blacktime <- list()
+  for (value in individualList) {
+    count <- count + 1
+    if (count %% 2 == 0) {
+      # get black move
+      if (value != as.numeric(timepermove[[i]][2])){
+        NewTotal<-(value-Value1)
+        print(NewTotal)
+        if (NewTotal <= -0.01){
+          NewTotal<-as.numeric(timepermove[[i]][2])
+        }
+        Value1<-value
+        #print(Value1)
+        blacktime <- c(blacktime, NewTotal)
+        #print(value)
+      }
+      blackcount <- blackcount + 1
+    } 
+    else {
+      # get white move
+      if (value != as.numeric(timepermove[[i]][1])){
+        NewTotal<-value-Value2
+        if (NewTotal <= -0.01){
+          NewTotal<-as.numeric(timepermove[[i]][1])
+        }
+        Value1<-value
+        whitetime <- c(whitetime, NewTotal)
+        #print(value)
+      }
+      blackcount <- blackcount + 1
+    }
+  }
+  
+  # Append the individual lists to the main lists
+  blacktimepermove <- append(blacktimepermove, list(blacktime))
+  whitetimepermove <- append(whitetimepermove, list(whitetime))
+}
+#this is somewhat working. It needs some more adjustments before it works perfectly. Aka still a bag of bugs and errors
 ```
 
 ```{r}
-count <- 0
-blacktimepermove<-list()
-whitetimepermove<-list()
 blackcount<-1
 for (value in timepermove){
   count <- count +1
   if (count %% 2 == 0){
-    #print(value)
     #get black move
     if (length(blacktimepermove != 0)){
       blacktimepermove<-c(blacktimepermove,value)
