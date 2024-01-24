@@ -413,9 +413,7 @@ for (game in filtered_data$pgn) {
 result_df_time <- do.call(rbind, result_list_times)
 result_df_time <- as.data.frame(result_df_time)
 result_df_time<-na.omit(result_df_time)
-```
 
-```{r}
 #create a function that gets the amount of time spent per move
 subtract_time <- function(set_value, variable) {
   set_time <- as.POSIXct(set_value, format = "%M:%OS")
@@ -426,27 +424,43 @@ subtract_time <- function(set_value, variable) {
   result_time <- set_time - variable_time
 
   # Format the result time as a string in the desired format
-
   return(result_time)
 }
-#print(result_list_times[1])
-set_value<-"01:00"
-count<-0
-timepermove <- list()
-for (value in result_list_times[1]) {
-  matches <- str_extract_all(value, '\\d+\\d+:\\d+(?:\\.\\d+|)')
 
+```
+
+```{r}
+count <- 0
+timepermove <- list()
+
+for (value in result_list_times) {
+  timepermoveinterior <- list()  # Initialize within the outer loop
+  matches <- str_extract_all(value, '\\d+\\d+:\\d+(?:\\.\\d+|)')
+  
   for (val in 1:length(matches)) {
-    m2<-as.character(matches[val][1])
+    m2 <- as.character(matches[val][1])
     NewMatches <- as.POSIXct(m2, format = "%M:%OS")
-    timeRemaining<-subtract_time(set_value,NewMatches)
-    setvalue<-m2
-    timeRemaining<-round(timeRemaining,digits = 1)
-    timepermove<-append(timepermove,timeRemaining)
+    timeRemaining <- subtract_time(set_value, NewMatches)
+    setvalue <- m2
+    timeRemaining <- round(timeRemaining, digits = 1)
+    timepermoveinterior <- c(timepermoveinterior, timeRemaining)
   }
+  
+  timepermove <- c(timepermove, list(timepermoveinterior))
 }
 
+```
 
+
+
+```{r}
+for (value in timepermove){
+  print(value)
+}
+
+```
+
+```{r}
 count <- 0
 blacktimepermove<-list()
 whitetimepermove<-list()
@@ -458,10 +472,6 @@ for (value in timepermove){
     #get black move
     if (length(blacktimepermove != 0)){
       blacktimepermove<-c(blacktimepermove,value)
-      
-      #blacktimepermove<-c(blacktimepermove,((value))-(blacktimepermove[blackcount]))
-      #print(value)
-      #print(blacktimepermove)
       blackcount<-blackcount+1
     }
     else{
@@ -473,25 +483,35 @@ for (value in timepermove){
     whitetimepermove<-c(whitetimepermove,(value))
   }
 }
-```
 
-```{r}
 storedTotal<-0
 Value1<-as.numeric(blacktimepermove[1])
+Value2<-as.numeric(whitetimepermove[1])
+blacktimepermove2<-list()
+whitetimepermove2<-list()
 
 for (value in blacktimepermove){
   if (value != as.numeric(blacktimepermove[1])){
-    #print(value)
-    #print(Value1)
     NewTotal<-value-Value1
     Value1<-value
-    print(NewTotal)
+    blacktimepermove2<-append(blacktimepermove2,NewTotal)
 
   }
 }
+
+for (value in whitetimepermove){
+  if (value != as.numeric(whitetimepermove[1])){
+    NewTotal<-value-Value2
+    Value2<-value
+    whitetimepermove2<-append(whitetimepermove2,NewTotal)
+
+
+  }
+}
+
 #the code above is trying to get the amount of time spent per move
 #currently it is trying its best
-#However, i do not think it is rounding to the nearest tenth
-#it is also not using the correct starting values for the black pieces
-
+#need to seperate games so that they are not all just one big list.
+#Need to be able to identify specific games
+#issues are currently in timepermove and its children as i modified the time per move function and its output
 ```
