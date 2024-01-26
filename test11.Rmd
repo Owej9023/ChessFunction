@@ -361,37 +361,41 @@ ggplot(recent_games_data_games_per_day, aes(y = total_change_elo, x = total_game
 
 
 ```{r}
-#this code gets the time of each game and the incriment for each game
-for (value in combined_df$time_control){
+# Initialize variables
+incriment <- FALSE
+selectedIncriment <- 0
+
+# Loop through each value in the 'time_control' column of 'combined_df'
+for (value in combined_df$time_control) {
   # Split the string based on the '+'
   split_strings <- strsplit(value, "\\+")[[1]]
   
   if (length(split_strings) == 2) {
-    # If there are two values, set selectedIncriment to the second value
-    incriment<- TRUE
+    # If there are two values, set 'incriment' to TRUE and 'selectedIncriment' to the second value
+    incriment <- TRUE
     selectedIncriment <- as.numeric(split_strings[2])
-    #print(selectedIncriment)
   } else {
+    # If there is only one value, set 'incriment' to FALSE and use a default incriment of 0
     incriment <- FALSE
-    # If there is only one value, use a default incriment
-    selectedIncriment<-0
+    selectedIncriment <- 0
   }
 
-  Length_of_Game_For_Each_Player<- as.numeric(split_strings[1])
+  # Extract the length of the game for each player in minutes
+  Length_of_Game_For_Each_Player <- as.numeric(split_strings[1])
+  
   # Convert minutes to HH:MM format
   time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
   
+  # Set 'set_value' to the formatted time
   set_value <- time_in_hhmm
-  #print(set_value)
-  #rint(selectedIncriment)
 }
 
-  #I Ignore daily  games for the analysis of time spent per move as the amount of time they acutally have and the time spent on the game are not the same. 
-  #Example: the vast majority of players with a 24 hour timer per move will not spend up to 24 hours on that move. Therefore I do not find it significant to look at time spent per move on daily games.
+# Ignore daily games for the analysis of time spent per move
 
+# Initialize an empty list before the loop
+result_list_times <- list()
 
-# This code Gets all the indiviudal time stamps for each move made in game
-result_list_times <- list()  # Initialize an empty list before the loop
+# Loop through each game in the 'filtered_data$pgn'
 for (game in filtered_data$pgn) {
   # Concatenate the lines of the game
   input_text <- paste(game, collapse = " ")
@@ -409,80 +413,118 @@ for (game in filtered_data$pgn) {
 }
 
 
-#This code transforms the above code into useablee formats
-result_df_time <- do.call(rbind, result_list_times)
-result_df_time <- as.data.frame(result_df_time)
-result_df_time<-na.omit(result_df_time)
-
-#create a function that gets the amount of time spent per move
+# Create a function that calculates the amount of time spent per move
 subtract_time <- function(set_value, variable) {
   set_time <- as.POSIXct(set_value, format = "%M:%OS")
-  set_time<-as.numeric(set_time)
+  set_time <- as.numeric(set_time)
   variable_time <- as.POSIXct(variable, format = "%M:%OS")
-  variable_time<-as.numeric(variable_time)
+  variable_time <- as.numeric(variable_time)
   # Subtract the variable time from the set time
   result_time <- set_time - variable_time
 
-  # Format the result time as a string in the desired format
+  # Return the result time
   return(result_time)
 }
 
 ```
 
 ```{r}
+# Initialize variables
 count <- 0
 timepermove <- list()
-
+val<-1
+#the value below is for testing, theoretically affter running the entire code it should work properlly
+#set_value<-"01:00.0"
+set_value1<-set_value
+# Loop through each value in the 'result_list_times'
 for (value in result_list_times) {
-  timepermoveinterior <- list()  # Initialize within the outer loop
-  matches <- str_extract_all(value, '\\d+\\d+:\\d+(?:\\.\\d+|)')
   
+  # Initialize a list to store time per move within the outer loop
+  timepermoveinterior <- list()  
+  
+  # Extract all matches of time values in the 'value'
+  matches <- str_extract_all(value, '\\d+\\d+:\\d+(?:\\.\\d+|)')
+  set_value<-as.character(str_extract_all(as.character(result_list_times[[val]][1]),'\\d+\\d+:\\d+(?:\\.\\d+|)'))
+  set_value<-as.POSIXct(set_value, format = "%M:%OS")
+  #set_value1<-as.character(str_extract_all(as.character(result_list_times[[val]][1]),'\\d+\\d+:\\d+(?:\\.\\d+|)'))
+  #set_value1<-as.POSIXct(set_value1, format = "%M:%OS")
+  set_value1<-set_value
+
+
+  # Loop through each match
   for (val in 1:length(matches)) {
-    m2 <- as.character(matches[val][1])
-    NewMatches <- as.POSIXct(m2, format = "%M:%OS")
-    timeRemaining <- subtract_time(set_value, NewMatches)
-    setvalue <- m2
-    timeRemaining <- round(timeRemaining, digits = 1)
-    timepermoveinterior <- c(timepermoveinterior, timeRemaining)
+    # Extract the matched string according to move color
+    if(val %% 2 == 0){
+      m2 <- as.character(matches[val][1])
+      # Convert the string to POSIXct format (minutes and seconds)
+      NewMatches <- as.POSIXct(m2, format = "%M:%OS")
+      # Calculate time remaining using a custom function 'subtract_time'
+      timeRemaining <- subtract_time(set_value, NewMatches)
+      # Update 'set_value' for the next iteration
+      set_value <- m2
+    
+      # Round the time remaining to one decimal place and add it to the interior list
+      timeRemaining <- round(timeRemaining, digits = 1)
+      timepermoveinterior <- c(timepermoveinterior, timeRemaining)
+
+    }
+    else{
+      m1 <- as.character(matches[val][1])
+      # Convert the string to POSIXct format (minutes and seconds)
+      NewMatches1 <- as.POSIXct(m1, format = "%M:%OS")
+      # Calculate time remaining using a custom function 'subtract_time'
+      timeRemaining <- subtract_time(set_value1, NewMatches1)
+      # Update 'set_value' for the next iteration
+      set_value1 <- m1
+    
+      # Round the time remaining to one decimal place and add it to the interior list
+      timeRemaining <- round(timeRemaining, digits = 1)
+      timepermoveinterior <- c(timepermoveinterior, timeRemaining)
+    }
   }
   
+  # Append the interior list to the main 'timepermove' list
   timepermove <- c(timepermove, list(timepermoveinterior))
 }
-
+#issues revolve around setvalue probably
 ```
 
-
-
 ```{r}
+# Initialize variables
 count <- 0
 whitetimepermove <- list()
 blacktimepermove <- list()
 blackcount <- 0
 
-for (i in 1:length(timepermove)) {
+# Loop through each element in the 'timepermove' list
+for (i in 1:length(timepermove[])) {
+  
+  # Extract the first move for each color from the game
   Value1 <- as.numeric(timepermove[[i]][2])
   Value2 <- as.numeric(timepermove[[i]][1])
-  
+  # Get the individual list of time per move
   individualList <- timepermove[[i]]
   whitetime <- list()
   blacktime <- list()
   
+  # Loop through each move in the individual list
   for (j in seq_along(individualList)) {
     count <- count + 1
     value <- as.numeric(individualList[j])
-    
+    # Check if it's a black move (count is even)
     if (count %% 2 == 0) {
-      # get black move
-      if (value != Value1) {
-        blacktime <- c(blacktime, value - Value1)
-        Value1 <- value
+      if (value != Value2){
+        blacktime<-c(blacktime,value)
+        # get black move
+        blackcount <- blackcount + 1
       }
-      blackcount <- blackcount + 1
-    } else {
-      # get white move
-      if (value != Value2) {
-        whitetime <- c(whitetime, value - Value2)
-        Value2 <- value
+
+    } 
+    if (count %% 2 == 1) {
+      if (value != Value2){
+        #print(value)
+        # get white move
+        whitetime <- c(whitetime, value)       
       }
     }
   }
@@ -492,56 +534,61 @@ for (i in 1:length(timepermove)) {
   whitetimepermove <- append(whitetimepermove, list(whitetime))
 }
 
+# The code processes a list of time per move in a chess game,
+# separating white and black moves and calculating time differences.
+# The results are stored in 'whitetimepermove' and 'blacktimepermove' lists.
+# 'blackcount' keeps track of the number of black moves.
+
 ```
 
 ```{r}
-blackcount<-1
-for (value in timepermove){
-  count <- count +1
-  if (count %% 2 == 0){
-    #get black move
-    if (length(blacktimepermove != 0)){
-      blacktimepermove<-c(blacktimepermove,value)
-      blackcount<-blackcount+1
-    }
-    else{
-      blacktimepermove<-c(blacktimepermove,value)
-    }
+
+zzz <- do.call(rbind, lapply(seq_along(timepermove), function(list_num) {
+  inner_list <- timepermove[[list_num]]
+  if(length(inner_list) > 0) {
+    df <- as.data.frame(do.call(rbind, inner_list))
+    df$move_number <- seq_along(df[[1]])
+    df$game_number <- list_num
+    return(df)
+  } else {
+    return(NULL)
   }
-  else{
-    #get white move
-    whitetimepermove<-c(whitetimepermove,(value))
-  }
-}
+}))
 
-storedTotal<-0
-Value1<-as.numeric(blacktimepermove[1])
-Value2<-as.numeric(whitetimepermove[1])
-blacktimepermove2<-list()
-whitetimepermove2<-list()
+```
 
-for (value in blacktimepermove){
-  if (value != as.numeric(blacktimepermove[1])){
-    NewTotal<-value-Value1
-    Value1<-value
-    blacktimepermove2<-append(blacktimepermove2,NewTotal)
+```{r}
+#ggplot(data = zzz)+aes(V1,move_number)+geom_col()
+ggplot(data = zzz) + 
+  aes(x = V1, y = (..count..)/sum(..count..)) +
+  geom_bar(stat="count", fill="blue") +
+  scale_y_continuous(labels=scales::percent_format(scale=1)) +
+  xlim(0,10) +
+  ylab("Percentage") +
+  xlab("Time Spent Per Move (Seconds)")
+ggplot(data = zzz) + 
+  aes(x = V1) +
+  geom_histogram(bins = 100)+
+  xlim(0,10)
+#bins = 100 because there are 100 tenths in 10 seconds
+```
 
-  }
-}
+```{r}
+# Generating dummy data
+set.seed(123)
+zzztest <- data.frame(V1 = sample(1:2, 4, replace = TRUE))
 
-for (value in whitetimepermove){
-  if (value != as.numeric(whitetimepermove[1])){
-    NewTotal<-value-Value2
-    Value2<-value
-    whitetimepermove2<-append(whitetimepermove2,NewTotal)
+# Creating the histogram with percentages
+library(ggplot2)
+library(scales)
+
+ggplot(data = zzztest) + 
+  aes(x = V1, y = (..count..)/sum(..count..)) +
+  geom_bar(stat="count", width=0.7, fill="blue") +
+  scale_y_continuous(labels=percent_format(scale=1)) +
+  xlim(0, 9) +
+  ylab("Percentage") +
+  xlab("Your X-axis label")
 
 
-  }
-}
-
-#the code above is trying to get the amount of time spent per move
-#currently it is trying its best
-#need to seperate games so that they are not all just one big list.
-#Need to be able to identify specific games
-#issues are currently in timepermove and its children as i modified the time per move function and its output
 ```
