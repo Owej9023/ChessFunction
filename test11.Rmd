@@ -55,7 +55,7 @@ for (url in archives$archives) {
 result_list <- list()
 
 combined_df <- bind_rows(archive_data)
-combined_df <- combined_df %>% filter(grepl("Bullet", time_class, ignore.case = TRUE))
+combined_df <- combined_df %>% filter(grepl("Blitz", time_class, ignore.case = TRUE))
 
 filtered_data <- combined_df %>% filter(rules == "chess")
 filtered_data <- filtered_data %>% filter(rated == "TRUE")
@@ -566,29 +566,12 @@ ggplot(data = zzz) +
   xlim(0,10) +
   ylab("Percentage") +
   xlab("Time Spent Per Move (Seconds)")
+
 ggplot(data = zzz) + 
-  aes(x = V1) +
-  geom_histogram(bins = 100)+
-  xlim(0,10)
-#bins = 100 because there are 100 tenths in 10 seconds
-```
-
-```{r}
-# Generating dummy data
-set.seed(123)
-zzztest <- data.frame(V1 = sample(1:2, 4, replace = TRUE))
-
-# Creating the histogram with percentages
-library(ggplot2)
-library(scales)
-
-ggplot(data = zzztest) + 
-  aes(x = V1, y = (..count..)/sum(..count..)) +
-  geom_bar(stat="count", width=0.7, fill="blue") +
-  scale_y_continuous(labels=percent_format(scale=1)) +
-  xlim(0, 9) +
-  ylab("Percentage") +
-  xlab("Your X-axis label")
-
+  aes(x = move_number, y = (..count..)/sum(..count..)) +
+  geom_bar(stat="count", fill="red") +
+  scale_y_continuous(labels=scales::percent_format(scale=1))+
+  ylab("Percentage")
 
 ```
+
