@@ -15,7 +15,6 @@ library(stringr)
 library(tidyr)
 library(ggplot2)
 library(chron)
-
 library(scales)
 library(lubridate)
 library(bigchess)
@@ -294,73 +293,6 @@ summary_data_month$sem_emon_elo <- summary_data_month$sd_emon_elo / sqrt(summary
 ```
 
 ```{r}
-
-# Output the result
-({ggplot(result_df, aes(x = game_number, y = chess_username)) +
-    geom_point() +
-    geom_smooth(size = 2) +
-    labs(title = "Elo over time",
-         x = "Number of games",
-         y = "Elo") +
-    theme_minimal()})
-({    ggplot(recent_games_data, aes(x = game_number, y = chess_username)) +
-    geom_smooth(color = "#4E79A7") +
-    geom_point() +
-    labs(title = "Player Elo in the Last 1000 Games",
-         x = "Game Number", y = "Elo") +
-    theme_minimal()})
-({
-# Create a geom_smooth for total change in Elo vs. total games played in a day
-ggplot(recent_games_data_games_per_day, aes(y = total_change_elo, x = total_games_per_day)) +
-  geom_smooth(color = "#4E79A7") +
-  labs(
-    title = "Plot of Change in Elo across multiple games in a day",
-    x = "Total # of games played in a day",
-    y = "Total Change in Elo"
-  )})
-({    # Create the bar plot with error bars for mean Elo change by day of the week
-  ggplot(summary_data, aes(x = day_of_week, y = mean_elo_change)) +
-    geom_col(fill = "#4E79A7") +
-    geom_errorbar(aes(ymin = mean_elo_change - sem_elo_change, ymax = mean_elo_change + sem_elo_change),
-                  width = 0.4, position = position_dodge(0.9)) +
-    labs(title = "Mean Elo Gain/Loss by Day of the Week",
-         x = "Day of the Week", y = "Mean Elo Change") +
-    coord_cartesian(ylim = c(NA, NA)) +  # Adjust the ylim based on your data
-    theme_minimal()})
-({    # Create the bar plot with error bars for mean Elo by week
-  ggplot(summary_data_week, aes(x = week_number, y = mean_eweek_elo)) +
-    geom_point()+
-    geom_smooth()+
-    labs(title = "Mean Elo by Week with Standard Dev",
-         x = "Week Number", y = "Mean Elo") +
-    coord_cartesian(ylim = c(NA, NA)) +
-    theme_minimal()})
-({
-  plot_ly(summary_data_month, x = ~month, y = ~mean_emon_elo, type = "bar", marker = list(color = "#4E79A7")) %>%
-    add_trace(
-      y = ~mean_emon_elo,
-      type = "bar",
-      marker = list(color = "#4E79A7"),
-      name = "Mean Elo",
-      error_y = list(
-        type = "data",
-        array = ~sd_emon_elo,
-        visible = TRUE
-      )
-    ) %>%
-    layout(
-      title = "Mean Elo by Month with Standard Dev",
-      xaxis = list(title = "Month"),
-      yaxis = list(title = "Mean Elo"),
-      showlegend = FALSE
-    )
-})
-
-
-```
-
-
-```{r}
 # Initialize variables
 incriment <- FALSE
 selectedIncriment <- 0
@@ -428,48 +360,53 @@ subtract_time <- function(set_value, variable) {
 
 ```
 
-```{r}
-# Initialize variables
+```{r,echo=FALSE}
+timepermove<-list()
 count <- 0
-timepermove <- list()
-val<-1
-#the value below is for testing, theoretically affter running the entire code it should work properlly
-#set_value<-"01:00.0"
-set_value1<-set_value
-# Loop through each value in the 'result_list_times'
-for (value in result_list_times) {
+for (value in combined_df$time_control) {
+  # Split the string based on the '+'
+  split_strings <- strsplit(value, "\\+")[[1]]
+
+  # Extract the length of the game for each player in minutes
+  Length_of_Game_For_Each_Player <- as.numeric(split_strings[1])
+  
+  # Convert minutes to HH:MM format
+  time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
+  
+  # Set 'set_value' to the formatted time
+  set_value <- time_in_hhmm
   
   # Initialize a list to store time per move within the outer loop
   timepermoveinterior <- list()  
-  
   # Extract all matches of time values in the 'value'
-  matches <- str_extract_all(value, '\\d+\\d+:\\d+(?:\\.\\d+|)')
-  set_value<-as.character(str_extract_all(as.character(result_list_times[[val]][1]),'\\d+\\d+:\\d+(?:\\.\\d+|)'))
-  set_value<-as.POSIXct(set_value, format = "%M:%OS")
-  #set_value1<-as.character(str_extract_all(as.character(result_list_times[[val]][1]),'\\d+\\d+:\\d+(?:\\.\\d+|)'))
-  #set_value1<-as.POSIXct(set_value1, format = "%M:%OS")
+  count<-count +1
+  matches <- str_extract_all(filtered_data$pgn[count], '\\d+\\d+:\\d+(?:\\.\\d+|)]')
+  matches<-str_extract_all(matches,'\\d+:\\d+(?:\\.\\d+|)')
+  set_value<-set_value
   set_value1<-set_value
-
-
-  # Loop through each match
-  for (val in 1:length(matches)) {
-    # Extract the matched string according to move color
-    if(val %% 2 == 0){
-      m2 <- as.character(matches[val][1])
+  
+  
+  for (move in 1:length(matches[[1]])){
+    if(move %% 2 == 0){
+      m2 <- as.character(matches[[1]][move])
       # Convert the string to POSIXct format (minutes and seconds)
       NewMatches <- as.POSIXct(m2, format = "%M:%OS")
       # Calculate time remaining using a custom function 'subtract_time'
       timeRemaining <- subtract_time(set_value, NewMatches)
       # Update 'set_value' for the next iteration
       set_value <- m2
-    
       # Round the time remaining to one decimal place and add it to the interior list
       timeRemaining <- round(timeRemaining, digits = 1)
-      timepermoveinterior <- c(timepermoveinterior, timeRemaining)
+      timepermoveinterior<-c(timepermoveinterior,timeRemaining)
 
     }
     else{
-      m1 <- as.character(matches[val][1])
+      if (move == 1){
+        m1 <- set_value1
+      }
+      else{
+        m1 <- as.character(matches[[1]][move])
+      }
       # Convert the string to POSIXct format (minutes and seconds)
       NewMatches1 <- as.POSIXct(m1, format = "%M:%OS")
       # Calculate time remaining using a custom function 'subtract_time'
@@ -479,14 +416,59 @@ for (value in result_list_times) {
     
       # Round the time remaining to one decimal place and add it to the interior list
       timeRemaining <- round(timeRemaining, digits = 1)
-      timepermoveinterior <- c(timepermoveinterior, timeRemaining)
+      timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+
     }
+    #timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+    #print(timepermoveinterior)
+
   }
-  
-  # Append the interior list to the main 'timepermove' list
+
   timepermove <- c(timepermove, list(timepermoveinterior))
 }
-#issues revolve around setvalue probably
+```
+
+
+
+
+
+```{r}
+
+zzz <- do.call(rbind, lapply(seq_along(timepermove), function(list_num) {
+  inner_list <- timepermove[[list_num]]
+  if(length(inner_list) > 0) {
+    df <- as.data.frame(do.call(rbind, inner_list))
+    df$move_number <- seq_along(df[[1]])
+    df$game_number <- list_num
+    return(df)
+  } else {
+    return(NULL)
+  }
+}))
+
+```
+
+```{r}
+#ggplot(data = zzz)+aes(V1,move_number)+geom_col()
+ggplot(data = zzz) + 
+  aes(x = V1, y = (..count..)/sum(..count..)) +
+  geom_bar(stat="count", fill="blue") +
+  scale_y_continuous(labels=scales::percent_format(scale=1)) +
+  xlim(0,10) +
+  ylab("Percentage") +
+  xlab("Time Spent Per Move (Seconds)")
+
+ggplot(data = zzz) + 
+  aes(x = move_number, y = (..count..)/sum(..count..)) +
+  geom_bar(stat="count", fill="red") +
+  scale_y_continuous(labels=scales::percent_format(scale=1))+
+  ylab("Percentage")
+
+```
+```{r}
+library(DBI)
+mydb <- dbConnect(RSQLite::SQLite(), "ChessDatabase1.sqlite")
+dbDisconnect(mydb)
 ```
 
 ```{r}
@@ -497,7 +479,7 @@ blacktimepermove <- list()
 blackcount <- 0
 
 # Loop through each element in the 'timepermove' list
-for (i in 1:length(timepermove[])) {
+for (i in 1:length(timepermove)) {
   
   # Extract the first move for each color from the game
   Value1 <- as.numeric(timepermove[[i]][2])
@@ -540,38 +522,3 @@ for (i in 1:length(timepermove[])) {
 # 'blackcount' keeps track of the number of black moves.
 
 ```
-
-```{r}
-
-zzz <- do.call(rbind, lapply(seq_along(timepermove), function(list_num) {
-  inner_list <- timepermove[[list_num]]
-  if(length(inner_list) > 0) {
-    df <- as.data.frame(do.call(rbind, inner_list))
-    df$move_number <- seq_along(df[[1]])
-    df$game_number <- list_num
-    return(df)
-  } else {
-    return(NULL)
-  }
-}))
-
-```
-
-```{r}
-#ggplot(data = zzz)+aes(V1,move_number)+geom_col()
-ggplot(data = zzz) + 
-  aes(x = V1, y = (..count..)/sum(..count..)) +
-  geom_bar(stat="count", fill="blue") +
-  scale_y_continuous(labels=scales::percent_format(scale=1)) +
-  xlim(0,10) +
-  ylab("Percentage") +
-  xlab("Time Spent Per Move (Seconds)")
-
-ggplot(data = zzz) + 
-  aes(x = move_number, y = (..count..)/sum(..count..)) +
-  geom_bar(stat="count", fill="red") +
-  scale_y_continuous(labels=scales::percent_format(scale=1))+
-  ylab("Percentage")
-
-```
-
