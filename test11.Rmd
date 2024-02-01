@@ -427,7 +427,10 @@ for (value in combined_df$time_control) {
   timepermove <- c(timepermove, list(timepermoveinterior))
 }
 ```
-
+```{r}
+#filtered_data2<-filtered_data$pgn
+#filtered_data2
+```
 
 
 
@@ -445,6 +448,8 @@ zzz <- do.call(rbind, lapply(seq_along(timepermove), function(list_num) {
     return(NULL)
   }
 }))
+
+write.csv(filtered_data$pgn, "C:/Users/19258/Documents/GitHub/ChessFunction/filtered_data2.csv")
 
 ```
 
@@ -466,9 +471,17 @@ ggplot(data = zzz) +
 
 ```
 ```{r}
+filtered_data<-filtered_data
 library(DBI)
-mydb <- dbConnect(RSQLite::SQLite(), "ChessDatabase1.sqlite")
+mydb <- dbConnect(RSQLite::SQLite(), "ChessDatabase.sqlite")
 dbDisconnect(mydb)
+
+mydb <- dbConnect(RSQLite::SQLite(), "")
+dbWriteTable(mydb, "zzz", zzz)
+#dbWriteTable(mydb, "filtered_data", filtered_data)
+dbListTables(mydb)
+dbGetQuery(mydb, 'SELECT * FROM zzz LIMIT 5')
+
 ```
 
 ```{r}
