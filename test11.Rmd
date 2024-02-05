@@ -72,7 +72,7 @@ for (game in filtered_data$pgn) {
   result_list <- c(result_list, list(matches))
 }
 
-for (game in filtered_data$pgn)
+#for (game in filtered_data$pgn)
 
 # Convert the list to a data frame
 result_df <- do.call(rbind, result_list)
@@ -360,7 +360,7 @@ subtract_time <- function(set_value, variable) {
 
 ```
 
-```{r,echo=FALSE}
+```{r,echo=FALSE, hide = TRUE}
 timepermove<-list()
 count <- 0
 for (value in combined_df$time_control) {
@@ -459,7 +459,7 @@ ggplot(data = zzz) +
   aes(x = V1, y = (..count..)/sum(..count..)) +
   geom_bar(stat="count", fill="blue") +
   scale_y_continuous(labels=scales::percent_format(scale=1)) +
-  xlim(0,10) +
+  xlim(0,20) +
   ylab("Percentage") +
   xlab("Time Spent Per Move (Seconds)")
 

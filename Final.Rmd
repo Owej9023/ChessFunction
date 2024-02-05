@@ -5,10 +5,108 @@ date: "2024-01-20"
 output: html_document
 ---
 
-```{r}
+```{r,echo=FALSE,warning=FALSE,message=FALSE}
 #Break down games into 3 seperate parts, Opening, middlegame, endgame
 #Opening is defined as any book moves + any other moves up until move 8* this number is subject to change
 #middle game is defined by a gamestate that has a total number of points of material greater than 20 points of material that is not the opening.
 #end game is defined by a game state with less than 20 points of materical
+
+chess_username <- "Owej9023"
+desired_rows<-10000000
+# Replace 'your_api_url_here' with the actual API endpoint for retrieving user data
+api_url <- paste0("https://api.chess.com/pub/player/",chess_username,"/games/archives")
+
+# Make a GET request to the API
+response <- GET(api_url)
+
+
+# Get the content of the response
+response_content <- content(response, "text")
+
+# Parse the JSON content
+archives <- jsonlite::fromJSON(response_content)
+
+# Initialize an empty list to store dataframes
+dataframes <- list()
+#print(archives)
+# Loop through each archive URL and retrieve the data
+archive_data<-list()
+for (url in archives$archives) {
+  archive_response <- GET(url)
+  archive_content <- content(archive_response, "text", flatten = FALSE)
+  archive_data1 <- jsonlite::fromJSON(archive_content)
+  archive_data <- c(archive_data,archive_data1)
+
+}
+
+result_list <- list()
+
+combined_df <- bind_rows(archive_data)
+#combined_df <- combined_df %>% filter(grepl("Blitz", time_class, ignore.case = TRUE))
+
+filtered_data <- combined_df %>% filter(rules == "chess")
+filtered_data <- filtered_data %>% filter(rated == "TRUE")
+
+result_list_times<-list()
+for (game in filtered_data$pgn) {
+  # Concatenate the lines of the game
+  input_text <- paste(game, collapse = " ")
+  
+  # Use regex to extract values within square brackets
+  matches <- str_extract_all(input_text, "[.] \\w+")
+  matches <- str_extract_all(matches, "\\b\\w+\\b")
+  # Process each match and add a comma after each match
+  # Process each match (excluding the first one) and add a comma after each match
+  processed_matches <- lapply(matches[[1]][-1], function(match) {
+  gsub("}", "},", match)
+})
+
+  
+  # Store the result in the list
+  result_list_times <- append(result_list_times, list(processed_matches))
+}
+
+# Extract values from inner lists
+values <- lapply(result_list_times, function(x) unlist(x))
+# Create a data frame
+df <- data.frame(
+  Moves = unlist(values),
+  Game_Number = rep(seq_along(values), sapply(values, length))
+)
+
+df <- df %>%
+  group_by(Game_Number) %>%
+  summarise(Game_Moves = toString(Moves))
+
+filtered_data$pgn <- NULL  # Remove the old columns
+filtered_data$accuracies<-NULL
+filtered_data$start_time<-NULL
+white_df<-filtered_data$white
+black_df<-filtered_data$black
+filtered_data$white<-NULL
+filtered_data$black<-NULL
+
+stinky<-c("WhiteRating","WhiteResult","White@id","WhiteUsername","Whiteuuid")
+colnames(white_df) <- stinky
+poopoo<- c("BlackRating","BlackResult","Black@id","BlackUsername","Blackuuid")
+colnames(black_df) <- poopoo
+df <- cbind(filtered_data, df)
+df <- cbind(white_df, df)
+df <- cbind(black_df, df)
+
+
+
+
+
+```
+
+```{r}
+mydb <- dbConnect(RSQLite::SQLite(), "ChessDatabase.sqlite")
+dbWriteTable(mydb, "ChessMoves", df,overwrite=TRUE)
+dbGetQuery(mydb, 'SELECT * FROM ChessMoves LIMIT 5')
+dbDisconnect(mydb)
+
+
+
 
 ```
