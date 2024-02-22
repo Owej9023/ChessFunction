@@ -23,7 +23,7 @@ library(bigchess)
 
 ```{r}
 
-chess_username <- "Owej9023"
+chess_username <- "owej9023"
 desired_rows<-10000000
 # Replace 'your_api_url_here' with the actual API endpoint for retrieving user data
 api_url <- paste0("https://api.chess.com/pub/player/",chess_username,"/games/archives")
@@ -52,8 +52,12 @@ for (url in archives$archives) {
 }
 
 result_list <- list()
+archive_data <- archive_data[sapply(archive_data, is.list)]
+
 
 combined_df <- bind_rows(archive_data)
+
+
 combined_df <- combined_df %>% filter(grepl("Blitz", time_class, ignore.case = TRUE))
 
 filtered_data <- combined_df %>% filter(rules == "chess")
