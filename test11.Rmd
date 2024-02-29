@@ -453,8 +453,11 @@ zzz <- do.call(rbind, lapply(seq_along(timepermove), function(list_num) {
   }
 }))
 
-write.csv(filtered_data$pgn, "C:/Users/19258/Documents/GitHub/ChessFunction/filtered_data2.csv")
 
+pgndataonly <- as.character(filtered_data$pgn)  # Convert PGN data to character vector
+writeLines(pgndataonly, "filtered_data2.pgn")  # Write PGN data to file
+
+#test
 ```
 
 ```{r}
