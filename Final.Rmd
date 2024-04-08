@@ -5,108 +5,360 @@ date: "2024-01-20"
 output: html_document
 ---
 
-```{r,echo=FALSE,warning=FALSE,message=FALSE}
-#Break down games into 3 seperate parts, Opening, middlegame, endgame
-#Opening is defined as any book moves + any other moves up until move 8* this number is subject to change
-#middle game is defined by a gamestate that has a total number of points of material greater than 20 points of material that is not the opening.
-#end game is defined by a game state with less than 20 points of materical
-
-chess_username <- "Owej9023"
-desired_rows<-10000000
-# Replace 'your_api_url_here' with the actual API endpoint for retrieving user data
-api_url <- paste0("https://api.chess.com/pub/player/",chess_username,"/games/archives")
-
-# Make a GET request to the API
-response <- GET(api_url)
 
 
-# Get the content of the response
-response_content <- content(response, "text")
 
-# Parse the JSON content
-archives <- jsonlite::fromJSON(response_content)
+```{r}
+library(plotly)
+library(httr)
+library(shiny)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(chron)
+library(scales)
+library(lubridate)
+library(bigchess)
+library(jsonlite)
+library(dplyr)
+library(purrr)
 
-# Initialize an empty list to store dataframes
-dataframes <- list()
-#print(archives)
-# Loop through each archive URL and retrieve the data
-archive_data<-list()
-for (url in archives$archives) {
-  archive_response <- GET(url)
-  archive_content <- content(archive_response, "text", flatten = FALSE)
-  archive_data1 <- jsonlite::fromJSON(archive_content)
-  archive_data <- c(archive_data,archive_data1)
+# Define the list of usernames
+usernames <- c("owej9023", "GMMelik","qwerrrrty","MagnusCarlsen","tokita9013","Hikaru","ballosh","SuperSpaceMonkey","radoslawczajkowski","gorgeous1083","Fatih")
 
+#rating as of 4/2/2024
+#Owej9023 = 1600
+#Hikaru = 3200 Titled
+#GMMelik = 2660 Titled
+#qwerrrrty = 2551
+#MagnusCarlsen = 3200 Titled
+#tokita9013 = 600
+#ballosh = 400
+#SuperSpaceMonkey = 900
+#radoslawczajkowski = 1500
+#gorgeous1083 = 2200 Titled
+#Fatih = 2200
+
+
+
+# Initialize an empty list to store datasets for each user
+zzz_list <- list()
+
+for (chess_username in usernames) {
+  api_url <- paste0("https://api.chess.com/pub/player/", chess_username, "/games/archives")
+  
+  # Make a GET request to the Chess.com API 
+  response <- GET(api_url)
+  
+  # Get the data for the user
+  response_content <- content(response, "text")
+  
+  # Parse the JSON content
+  archives <- jsonlite::fromJSON(response_content)
+  
+  # Initialize an empty list to store dataframes
+  dataframes <- list()
+  
+  # Loop through each archive URL and retrieve the data
+  archive_data <- list()
+  for (url in archives$archives) {
+    archive_response <- GET(url)
+    archive_content <- content(archive_response, "text", flatten = FALSE)
+    archive_data1 <- jsonlite::fromJSON(archive_content)
+    archive_data <- c(archive_data, archive_data1)
+  }
+  
+  combined_df <- bind_rows(archive_data)
+  
+  # Filter the data
+  combined_df <- combined_df %>% 
+    filter(grepl("blitz", time_class, ignore.case = TRUE)) %>%
+    filter(rules == "chess") %>%
+    filter(rated == "TRUE")
+  
+  # Store the result in zzz_list
+  zzz_list[[chess_username]] <- combined_df
 }
 
-result_list <- list()
+# Process zzz_list to create a combined dataset
+zzz <- bind_rows(zzz_list, .id = "username")
 
-combined_df <- bind_rows(archive_data)
-#combined_df <- combined_df %>% filter(grepl("Blitz", time_class, ignore.case = TRUE))
-
-filtered_data <- combined_df %>% filter(rules == "chess")
-filtered_data <- filtered_data %>% filter(rated == "TRUE")
-
-result_list_times<-list()
-for (game in filtered_data$pgn) {
-  # Concatenate the lines of the game
-  input_text <- paste(game, collapse = " ")
-  
-  # Use regex to extract values within square brackets
-  matches <- str_extract_all(input_text, "[.] \\w+")
-  matches <- str_extract_all(matches, "\\b\\w+\\b")
-  # Process each match and add a comma after each match
-  # Process each match (excluding the first one) and add a comma after each match
-  processed_matches <- lapply(matches[[1]][-1], function(match) {
-  gsub("}", "},", match)
-})
-
-  
-  # Store the result in the list
-  result_list_times <- append(result_list_times, list(processed_matches))
-}
-
-# Extract values from inner lists
-values <- lapply(result_list_times, function(x) unlist(x))
-# Create a data frame
-df <- data.frame(
-  Moves = unlist(values),
-  Game_Number = rep(seq_along(values), sapply(values, length))
-)
-
-df <- df %>%
-  group_by(Game_Number) %>%
-  summarise(Game_Moves = toString(Moves))
-
-filtered_data$pgn <- NULL  # Remove the old columns
-filtered_data$accuracies<-NULL
-filtered_data$start_time<-NULL
-white_df<-filtered_data$white
-black_df<-filtered_data$black
-filtered_data$white<-NULL
-filtered_data$black<-NULL
-
-stinky<-c("WhiteRating","WhiteResult","White@id","WhiteUsername","Whiteuuid")
-colnames(white_df) <- stinky
-poopoo<- c("BlackRating","BlackResult","Black@id","BlackUsername","Blackuuid")
-colnames(black_df) <- poopoo
-df <- cbind(filtered_data, df)
-df <- cbind(white_df, df)
-df <- cbind(black_df, df)
-
-
+# Add rating column to the combined 
 
 
 
 ```
 
 ```{r}
-mydb <- dbConnect(RSQLite::SQLite(), "ChessDatabase.sqlite")
-dbWriteTable(mydb, "ChessMoves", df,overwrite=TRUE)
-dbGetQuery(mydb, 'SELECT * FROM ChessMoves LIMIT 5')
-dbDisconnect(mydb)
+#Initialize variables
+incriment <- FALSE
+selectedIncriment <- 0
 
+# Loop through each value in the 'time_control' column of 'combined_df'
+for (value in zzz$time_control) {
+  # Split the string based on the '+'
+  split_strings <- strsplit(value, "\\+")[[1]]
+  
+  if (length(split_strings) == 2) {
+    # If there are two values, set 'incriment' to TRUE and 'selectedIncriment' to the second value
+    incriment <- TRUE
+    selectedIncriment <- as.numeric(split_strings[2])
+  } else {
+    # If there is only one value, set 'incriment' to FALSE and use a default incriment of 0
+    incriment <- FALSE
+    selectedIncriment <- 0
+  }
+
+  # Extract the length of the game for each player in minutes
+  Length_of_Game_For_Each_Player <- as.numeric(split_strings[1])
+  
+  # Convert minutes to HH:MM format
+  time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
+  
+  # Set 'set_value' to the formatted time
+  set_value <- time_in_hhmm
+}
+
+# Ignore daily games for the analysis of time spent per move
+
+# Initialize an empty list before the loop
+result_list_times <- list()
+
+# Loop through each game in the 'filtered_data$pgn'
+for (game in zzz$pgn) {
+  # Concatenate the lines of the game
+  input_text <- paste(game, collapse = " ")
+  
+  # Use regex to extract values within square brackets
+  matches <- str_extract_all(input_text, "\\{[^\\}]*\\}")
+
+  # Process each match and add a comma after each match
+  processed_matches <- lapply(matches[[1]], function(match) {
+    gsub("}", "},", match)
+  })
+
+  # Store the result in the list
+  result_list_times <- append(result_list_times, list(processed_matches))
+}
+
+
+# Create a function that calculates the amount of time spent per move
+subtract_time <- function(set_value, variable) {
+  set_time <- as.POSIXct(set_value, format = "%M:%OS")
+  set_time <- as.numeric(set_time)
+  variable_time <- as.POSIXct(variable, format = "%M:%OS")
+  variable_time <- as.numeric(variable_time)
+  # Subtract the variable time from the set time
+  result_time <- set_time - variable_time
+
+  # Return the result time
+  return(result_time)
+}
+
+```
+
+
+```{r,echo=FALSE, hide = TRUE,warning=FALSE}
+
+
+timepermove<-list()
+count <- 0
+for (value in zzz$time_control) {
+  # Split the string based on the '+'
+  split_strings <- strsplit(value, "\\+")[[1]]
+
+  # Extract the length of the game for each player in minutes
+  Length_of_Game_For_Each_Player <- as.numeric(split_strings[1])
+  
+  # Convert minutes to HH:MM format
+  time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
+  
+  # Set 'set_value' to the formatted time
+  set_value <- time_in_hhmm
+  
+  # Initialize a list to store time per move within the outer loop
+  timepermoveinterior <- list()  
+  # Extract all matches of time values in the 'value'
+  count<-count +1
+  matches <- str_extract_all(zzz$pgn[count], '\\d+\\d+:\\d+(?:\\.\\d+|)]')
+  matches<-str_extract_all(matches,'\\d+:\\d+(?:\\.\\d+|)')
+  set_value<-set_value
+  set_value1<-set_value
+  
+  
+  for (move in 1:length(matches[[1]])){
+    if(move %% 2 == 0){
+      m2 <- as.character(matches[[1]][move])
+      # Convert the string to POSIXct format (minutes and seconds)
+      NewMatches <- as.POSIXct(m2, format = "%M:%OS")
+      # Calculate time remaining using a custom function 'subtract_time'
+      timeRemaining <- subtract_time(set_value, NewMatches)
+      # Update 'set_value' for the next iteration
+      set_value <- m2
+      # Round the time remaining to one decimal place and add it to the interior list
+      timeRemaining <- round(timeRemaining, digits = 1)
+      timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+
+    }
+    else{
+      if (move == 1){
+        m1 <- set_value1
+      }
+      else{
+        m1 <- as.character(matches[[1]][move])
+      }
+      # Convert the string to POSIXct format (minutes and seconds)
+      NewMatches1 <- as.POSIXct(m1, format = "%M:%OS")
+      # Calculate time remaining using a custom function 'subtract_time'
+      timeRemaining <- subtract_time(set_value1, NewMatches1)
+      # Update 'set_value' for the next iteration
+      set_value1 <- m1
+    
+      # Round the time remaining to one decimal place and add it to the interior list
+      timeRemaining <- round(timeRemaining, digits = 1)
+      timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+
+    }
+    #timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+    #print(timepermoveinterior)
+
+  }
+
+  timepermove <- c(timepermove, list(timepermoveinterior))
+}
+```
+#Run starts here if you use the csv files
+
+```{r}
+library(plotly)
+library(httr)
+library(dplyr)
+library(shiny)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(chron)
+library(scales)
+library(lubridate)
+library(bigchess)
+#zzz<-read.csv("finaldataframe.csv")
+
+zzz2<-read.csv("finaldataframetime.csv")
+
+# Create a dataframe to map usernames to ratings
+
+# Create a function that calculates the amount of time spent per move
+subtract_time <- function(set_value, variable) {
+  set_time <- as.POSIXct(set_value, format = "%M:%OS")
+  set_time <- as.numeric(set_time)
+  variable_time <- as.POSIXct(variable, format = "%M:%OS")
+  variable_time <- as.numeric(variable_time)
+  # Subtract the variable time from the set time
+  result_time <- set_time - variable_time
+
+  # Return the result time
+  return(result_time)
+}
+# Combine time per move data into a single dataframe
 
 
 
 ```
+
+```{r}
+zzz2<-read.csv("finaldataframetime.csv")
+#zzz<-read.csv("finaldataframe.csv")
+
+library(dplyr)
+
+# Store the original arrangement
+original_arrangement <- arrange(zzz2, move_number)
+
+# Modify the dataset
+zzz2 <- zzz2 %>%
+  arrange(username, move_number) %>%
+  group_by(username) %>%
+  mutate(
+    game_number = cumsum(move_number == 1)
+  ) %>%
+  select(-rating)
+
+
+```
+
+```{r}
+
+zzz3<-zzz2
+# Correlation Analysis
+# Calculate correlation coefficient between time spent per move and performance metric
+correlation <- cor.test(zzz3$V1, zzz3$move_number, method=c("pearson", "kendall", "spearman"))
+print(correlation)
+
+correlation <- cor.test(zzz3$V1, zzz3$game_number, method=c("pearson", "kendall", "spearman"))
+print(correlation)
+
+# Comparative Analysis
+# Group players by player_id and calculate average time spent per move for each player
+grouped_data <- zzz2 %>%
+  group_by(username) %>%
+  summarize(avg_time_spent_per_move = mean(V1))
+
+# Plot distribution of average time spent per move for all players
+ggplot(grouped_data, aes(x = avg_time_spent_per_move)) +
+  geom_histogram(binwidth = 0.1, fill = "skyblue", color = "black") +
+  labs(title = "Distribution of Average Time Spent per Move",
+       x = "Average Time Spent per Move",
+       y = "Frequency")
+
+# Perform ANOVA to test for significant differences in average time spent per move between player groups
+anova_result <- aov(avg_time_spent_per_move ~ username, data = grouped_data)
+summary(anova_result)
+
+
+# Perform Tukey's HSD test
+tukey_result <- TukeyHSD(anova_result)
+
+# Check Tukey's HSD results
+tukey_result
+
+```
+
+
+```{r}
+ggplot(zzz2, aes(x = move_number, y = V1, color = factor(username))) +
+  geom_smooth(aes(color = factor(username)), show.legend = TRUE) +
+  scale_color_viridis_d()+
+  xlim(0,200)
+
+ggplot(zzz2, aes(x = game_number, y = V1, color = factor(username))) +
+  geom_smooth(aes(color = factor(username)), show.legend = TRUE) +
+  scale_color_viridis_d()
+
+
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+# Build the linear model
+model  <- lm(V1 ~ move_number, data = zzz2)
+# Create a QQ plot of residuals
+ggqqplot(residuals(model))
+
+# Check ANOVA summary
+summary(anova_result)
+
+# Perform Tukey's HSD test
+tukey_result <- TukeyHSD(anova_result)
+
+# Check Tukey's HSD results
+tukey_result
+
+```
+
+  
+
+
+
+
+
