@@ -6,6 +6,20 @@ This R script performs analysis on chess game data obtained from the Chess.com A
 ## Features:
 
 1. **Data Retrieval**: The script retrieves game data from the Chess.com API for a list of specified usernames.
+   **Scraping the Data**:
+      1. **API Request**: The code makes HTTP GET requests to the Chess.com API endpoint (`https://api.chess.com/pub/player/{username}/games/archives`) to retrieve the game archives for each specified username. It               iterates through each player's username to gather their game archives.
+
+      2. **Iterating through Years and Months**: For each player, the API provides game archives organized by year and month. Therefore, the code iterates through each year and month to retrieve the game data for that           specific period. This involves constructing the appropriate URLs for each year and month and making API requests to fetch the game data.
+
+      3. **JSON Parsing**: The JSON response from the API is parsed using the `jsonlite::fromJSON()` function to convert it into a structured R object.
+
+      4. **Data Retrieval**: The code loops through each archive URL obtained from the JSON response and retrieves the game data from each URL.
+
+      5. **Data Processing**: The retrieved game data is filtered based on specific criteria such as time control (blitz), rules (chess), and rated games.
+
+      6. **Time Calculation**: Time spent per move is calculated for each game using custom functions.
+
+      This process ensures that the code systematically collects game data from Chess.com for each player, navigating through their game archives organized by year and month.
 
 2. **Data Processing**: 
    - The retrieved data is filtered based on specific criteria such as game time control (blitz), rules (chess), and rated games.
