@@ -1,0 +1,689 @@
+---
+title: "NewCleanFinal"
+author: "Owen Dy"
+date: "2024-04-30"
+output: html_document
+---
+
+```{r}
+library(plotly)
+library(httr)
+library(shiny)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(chron)
+library(scales)
+library(lubridate)
+library(bigchess)
+library(jsonlite)
+library(dplyr)
+library(purrr)
+
+# Define the list of usernames
+usernames <- c("owej9023", "GMMelik","qwerrrrty","MagnusCarlsen","tokita9013","Hikaru","ballosh","radoslawczajkowski","gorgeous1083","Fatih")
+
+#rating as of 4/2/2024
+#Owej9023 = 1600
+#Hikaru = 3200 Titled
+#GMMelik = 2660 Titled
+#qwerrrrty = 2551
+#MagnusCarlsen = 3200 Titled
+#tokita9013 = 600
+#ballosh = 400
+#radoslawczajkowski = 1500
+#gorgeous1083 = 2200 Titled
+#Fatih = 2200
+#superspacemonkey = 1200
+
+
+
+# Initialize an empty list to store datasets for each user
+zzz_list <- list()
+
+for (chess_username in usernames) {
+  api_url <- paste0("https://api.chess.com/pub/player/", chess_username, "/games/archives")
+  
+  # Make a GET request to the Chess.com API 
+  response <- GET(api_url)
+  
+  # Get the data for the user
+  response_content <- content(response, "text")
+  
+  # Parse the JSON content
+  archives <- jsonlite::fromJSON(response_content)
+  
+  # Initialize an empty list to store dataframes
+  dataframes <- list()
+  
+  # Loop through each archive URL and retrieve the data
+  archive_data <- list()
+  for (url in archives$archives) {
+    archive_response <- GET(url)
+    archive_content <- content(archive_response, "text", flatten = FALSE)
+    archive_data1 <- jsonlite::fromJSON(archive_content)
+    archive_data <- c(archive_data, archive_data1)
+  }
+  
+  combined_df <- bind_rows(archive_data)
+  
+  # Filter the data
+  combined_df <- combined_df %>% 
+    filter(grepl("blitz", time_class, ignore.case = TRUE)) %>%
+    filter(rules == "chess") %>%
+    filter(rated == "TRUE")
+  
+  # Store the result in zzz_list
+  zzz_list[[chess_username]] <- combined_df
+}
+
+# Process zzz_list to create a combined dataset
+zzz <- bind_rows(zzz_list, .id = "username")
+
+# Add rating column to the combined 
+
+
+
+```
+
+```{r}
+#Initialize variables
+incriment <- FALSE
+selectedIncriment <- 0
+
+# Loop through each value in the 'time_control' column of 'combined_df'
+for (value in zzz$time_control) {
+  # Split the string based on the '+'
+  split_strings <- strsplit(value, "\\+")[[1]]
+  
+  if (length(split_strings) == 2) {
+    # If there are two values, set 'incriment' to TRUE and 'selectedIncriment' to the second value
+    incriment <- TRUE
+    selectedIncriment <- as.numeric(split_strings[2])
+  } else {
+    # If there is only one value, set 'incriment' to FALSE and use a default incriment of 0
+    incriment <- FALSE
+    selectedIncriment <- 0
+  }
+
+  # Extract the length of the game for each player in minutes
+  Length_of_Game_For_Each_Player <- as.numeric(split_strings[1])
+  
+  # Convert minutes to HH:MM format
+  time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
+  
+  # Set 'set_value' to the formatted time
+  set_value <- time_in_hhmm
+}
+
+# Ignore daily games for the analysis of time spent per move
+
+# Initialize an empty list before the loop
+result_list_times <- list()
+
+# Loop through each game in the 'filtered_data$pgn'
+for (game in zzz$pgn) {
+  # Concatenate the lines of the game
+  input_text <- paste(game, collapse = " ")
+  
+  # Use regex to extract values within square brackets
+  matches <- str_extract_all(input_text, "\\{[^\\}]*\\}")
+
+  # Process each match and add a comma after each match
+  processed_matches <- lapply(matches[[1]], function(match) {
+    gsub("}", "},", match)
+  })
+
+  # Store the result in the list
+  result_list_times <- append(result_list_times, list(processed_matches))
+}
+
+
+# Create a function that calculates the amount of time spent per move
+subtract_time <- function(set_value, variable) {
+  set_time <- as.POSIXct(set_value, format = "%M:%OS")
+  set_time <- as.numeric(set_time)
+  variable_time <- as.POSIXct(variable, format = "%M:%OS")
+  variable_time <- as.numeric(variable_time)
+  # Subtract the variable time from the set time
+  result_time <- set_time - variable_time
+
+  # Return the result time
+  return(result_time)
+}
+
+```
+
+
+```{r,echo=FALSE, hide = TRUE,warning=FALSE}
+
+
+timepermove<-list()
+count <- 0
+for (value in zzz$time_control) {
+  # Split the string based on the '+'
+  split_strings <- strsplit(value, "\\+")[[1]]
+
+  # Extract the length of the game for each player in minutes
+  Length_of_Game_For_Each_Player <- as.numeric(split_strings[1])
+  
+  # Convert minutes to HH:MM format
+  time_in_hhmm <- sprintf("%02d:%02d", Length_of_Game_For_Each_Player[1] %/% 60, Length_of_Game_For_Each_Player[1] %% 60)
+  
+  # Set 'set_value' to the formatted time
+  set_value <- time_in_hhmm
+  
+  # Initialize a list to store time per move within the outer loop
+  timepermoveinterior <- list()  
+  # Extract all matches of time values in the 'value'
+  count<-count +1
+  matches <- str_extract_all(zzz$pgn[count], '\\d+\\d+:\\d+(?:\\.\\d+|)]')
+  matches<-str_extract_all(matches,'\\d+:\\d+(?:\\.\\d+|)')
+  set_value<-set_value
+  set_value1<-set_value
+  
+  
+  for (move in 1:length(matches[[1]])){
+    if(move %% 2 == 0){
+      m2 <- as.character(matches[[1]][move])
+      # Convert the string to POSIXct format (minutes and seconds)
+      NewMatches <- as.POSIXct(m2, format = "%M:%OS")
+      # Calculate time remaining using a custom function 'subtract_time'
+      timeRemaining <- subtract_time(set_value, NewMatches)
+      # Update 'set_value' for the next iteration
+      set_value <- m2
+      # Round the time remaining to one decimal place and add it to the interior list
+      timeRemaining <- round(timeRemaining, digits = 1)
+      timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+
+    }
+    else{
+      if (move == 1){
+        m1 <- set_value1
+      }
+      else{
+        m1 <- as.character(matches[[1]][move])
+      }
+      # Convert the string to POSIXct format (minutes and seconds)
+      NewMatches1 <- as.POSIXct(m1, format = "%M:%OS")
+      # Calculate time remaining using a custom function 'subtract_time'
+      timeRemaining <- subtract_time(set_value1, NewMatches1)
+      # Update 'set_value' for the next iteration
+      set_value1 <- m1
+    
+      # Round the time remaining to one decimal place and add it to the interior list
+      timeRemaining <- round(timeRemaining, digits = 1)
+      timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+
+    }
+    #timepermoveinterior<-c(timepermoveinterior,timeRemaining)
+    #print(timepermoveinterior)
+
+  }
+
+  timepermove <- c(timepermove, list(timepermoveinterior))
+}
+```
+
+```{r}
+library(plotly)
+library(httr)
+library(dplyr)
+library(shiny)
+library(stringr)
+library(tidyr)
+library(ggplot2)
+library(chron)
+library(scales)
+library(lubridate)
+library(bigchess)
+zzz<-read.csv("finaldataframe.csv")
+zzz <- zzz %>% 
+  filter(grepl("blitz", time_class, ignore.case = TRUE)) %>%
+  filter(rules == "chess") %>%
+  filter(rated == "TRUE") %>%
+  filter(time_control %in% c("180", "180+2", "300"))
+
+
+# Create a function that calculates the amount of time spent per move
+subtract_time <- function(set_value, variable) {
+  set_time <- as.POSIXct(set_value, format = "%M:%OS")
+  set_time <- as.numeric(set_time)
+  variable_time <- as.POSIXct(variable, format = "%M:%OS")
+  variable_time <- as.numeric(variable_time)
+  # Subtract the variable time from the set time
+  result_time <- set_time - variable_time
+
+  # Return the result time
+  return(result_time)
+}
+# Combine time per move data into a single dataframe
+
+zzztest <- do.call(rbind, lapply(seq_along(timepermove), function(list_num) {
+  inner_list <- timepermove[[list_num]]
+  if(length(inner_list) > 0) {
+    df <- as.data.frame(do.call(rbind, inner_list))
+    df$move_number <- seq_along(df[[1]])
+    df$game_number <- list_num
+    df$username <- zzz$username[list_num]
+    df$Rating<-zzz$white.rating[list_num]
+    df$TimeFormat <-zzz$time_control[list_num]
+    return(df)
+  } else {
+    return(NULL)
+  }
+}))
+
+reset_game_number <- function(data) {
+  zzztest <- zzztest %>%
+    group_by(username) %>%
+    mutate(game_number = ifelse(move_number == 1, cumsum(c(TRUE, diff(move_number) < 0)), game_number))
+  return(zzztest)
+}
+
+# Apply the function to your dataset
+df <- reset_game_number(zzztest)
+
+# View the updated dataset
+print(df)
+
+```
+
+```{r}
+df <- na.omit(df)
+ggplot(df, aes(x = move_number, y = V1, color = factor(TimeFormat))) +
+  geom_smooth() +
+  labs(
+    title = "Time Use Across Different formats of Blitz Chess",
+    x = "Move Number",
+    y = "Time Spent (Seconds)"
+  ) +
+  scale_color_discrete(name = "Time Format", labels = c("3 Minute", "3 Minute + 2 Seconds per Move", "5 Minutes"))+
+  xlim(0,200)
+
+
+# Assuming 'df' contains your data
+library(ggplot2)
+
+# Calculate the count and standard error for each game
+summary_df <- df %>% 
+  group_by(TimeFormat) %>%
+  summarise(count = n(), 
+            error = sd(count)/sqrt(length(count)))
+
+# Plot the bar graph with error bars
+ggplot(summary_df, aes(x = TimeFormat, y = count)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(ymin = count - error, ymax = count + error), width = 0.2) +
+  labs(title = "Count of each game with error bars",
+       x = "TimeFormat",
+       y = "Count")
+
+```
+
+```{r}
+library(nnet)
+
+library(dplyr)
+
+# Randomly sample 1000 rows from df
+df2 <- df %>% 
+  sample_n(1000, replace = FALSE)  # Set replace = FALSE to sample without replacement
+
+# Now you can fit your model using df2
+model <- multinom(username ~ V1 + move_number + game_number + TimeFormat, data = df)
+
+df3<- df
+# Assuming 'df' is your dataframe containing the "Rating" column
+# Create a vector with the numeric rankings corresponding to each username
+rating_values <- c(1600, 3200, 2660, 2551, 3200, 600, 400, 1500, 2200, 2200, 1200)
+
+# Map the numeric rankings to the usernames in df
+df3$Rating <- rating_values[match(df$username, c("owej9023", "Hikaru", "GMMelik", "qwerrrrty", "MagnusCarlsen", "tokita9013", "ballosh", "radoslawczajkowski", "gorgeous1083", "Fatih", "SperSpaceMonkey"))]
+
+model2 <- lm(Rating ~ V1 + move_number + game_number + TimeFormat, data = df3)
+
+model3<- lm(Rating ~ V1 + move_number + game_number + TimeFormat, data = df)
+
+```
+
+
+
+```{r}
+summary(model)
+
+summary(model2)
+
+summary(model3)
+
+```
+
+```{r}
+#Decision Tree
+library(rpart)
+
+# Split the dataset into features (X) and target variable (y)
+X <- df4[, c('Rating', 'V1', 'game_number', 'move_number','TimeFormat')]
+y <- df4$username
+
+# Split the data into training and testing sets
+set.seed(42) # For reproducibility
+train_indices <- sample(1:nrow(df4), 0.8 * nrow(df4))
+X_train <- X[train_indices, ]
+y_train <- y[train_indices]
+X_test <- X[-train_indices, ]
+y_test <- y[-train_indices]
+
+# Train the decision tree model
+tree_model <- rpart(y_train ~ ., data = cbind(X_train, y_train))
+
+# Make predictions on the test set
+predictions <- predict(tree_model, newdata = X_test, type = "class")
+
+# Calculate the accuracy of the model
+accuracy <- mean(predictions == y_test)
+print(paste("Accuracy:", accuracy))
+
+```
+
+```{r}
+library(ggplot2)
+df3 <- df
+
+# Create a named vector with rating values for each player
+rating_values <- c(1600, 3000, 2660, 2551, 3200, 600, 400, 1500, 2250, 2200, 1200)
+names(rating_values) <- c("owej9023", "Hikaru", "GMMelik", "qwerrrrty", "MagnusCarlsen", "tokita9013", "ballosh", "radoslawczajkowski", "gorgeous1083", "Fatih", "SuperSpaceMonkey")
+
+# Replace all the values in the rating column of df3 with their corresponding ratings based on the username-rating pairs
+df3$Rating <- rating_values[df3$username]
+
+ggplot(df3, aes(x = as.factor(Rating), y = V1)) +
+  geom_boxplot() +
+  ylim(-10, 10) +
+  ylab("Time Spent Per Move (Seconds)") +
+  xlab("Elo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+library(dplyr)
+
+df3_unique <- df3 %>% 
+  arrange(Rating) %>%
+  distinct(username, .keep_all = TRUE)
+
+ggplot(df3_unique, aes(x = factor(username, levels = username), y = Rating, fill = Rating)) +
+  geom_col() +
+  xlab("Players")+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_viridis_c()  # Adjust the color scale as needed
+
+
+```
+
+```{r}
+library(ggplot2)
+
+# Filter the data for the specific username
+df_filtered <- df3
+
+# Aggregate the data to get the percentage of moves for each move number across all games
+move_percent <- prop.table(table(df_filtered$move_number)) * 100
+
+# Create a dataframe for the aggregated data
+move_df <- data.frame(
+  move_number = as.numeric(names(move_percent)), 
+  percentage = as.numeric(move_percent)
+)
+
+# Calculate cumulative percentage
+move_df$cumulative_percentage <- cumsum(move_df$percentage)
+
+# Round percentages to two significant figures
+move_df$percentage_rounded <- round(move_df$percentage, digits = 2)
+
+ggplot(move_df, aes(x = move_number, y = cumulative_percentage, fill = move_number)) +
+  geom_bar(stat = "identity") +
+  geom_vline(xintercept = 100, color = "red") +  # Add a red line at move 100
+  geom_text(aes(x = 90, y = max(cumulative_percentage), label = sprintf("Total: %.2f%%", sum(move_df$percentage[move_df$move_number <= 100]))), color = "black", hjust = 1) +  # Annotation for total percentage to the left of the line
+  geom_text(aes(x = 110, y = max(cumulative_percentage), label = sprintf("%.2f%%", sum(move_df$percentage[move_df$move_number > 100]))), color = "black", hjust = 0) +  # Annotation for percentage to the right of the line
+  labs(x = "Move Number", y = "Cumulative Percentage of Games", fill = "Move Number") +
+  scale_fill_viridis_c(option = "D", limits = c(0, 200)) +
+  theme_minimal() +
+  xlim(0, 200)
+
+
+```
+
+```{r}
+#df_filtered$Rating<-as.factor(df_filtered$Rating)
+
+
+
+move_percent <- df_filtered %>%
+  group_by(move_number, username) %>%
+  summarise(percentage = n() / nrow(df_filtered) * 100) %>%
+  ungroup()
+
+move_df <- move_percent %>%
+  arrange(move_number) %>%
+  group_by(username) %>%
+  mutate(
+    cumulative_percentage = cumsum(percentage),
+    cumulative_percentage = 100 * cumulative_percentage / max(cumulative_percentage), # Normalize to 0-100%
+    percentage_rounded = round(percentage, digits = 2)
+  ) %>%
+  ungroup()
+
+# Plot
+ggplot(move_df, aes(x = move_number, y = cumulative_percentage, color = username)) +
+  geom_line() +
+  geom_vline(xintercept = 100, color = "red") +  # Add a red line at move 100
+  geom_text(aes(x = 90, y = 100, label = sprintf("Total: %.2f%%", sum(move_df$percentage[move_df$move_number <= 100]))), color = "black", hjust = 1) +  # Annotation for total percentage to the left of the line
+  geom_text(aes(x = 110, y = 100, label = sprintf("%.2f%%", sum(move_df$percentage[move_df$move_number > 100]))), color = "black", hjust = 0) +  # Annotation for percentage to the right of the line
+  labs(x = "Move Number", y = "Cumulative Percentage of Games", color = "Player") +
+  theme_minimal()
+
+
+```
+
+```{r}
+
+library(ggplot2)
+
+library(dplyr)
+library(ggplot2)
+
+# Assuming df_filtered contains the relevant data
+
+move_percent <- df_filtered %>%
+  group_by(move_number, username) %>%
+  summarise(percentage = n() / nrow(df_filtered) * 100) %>%
+  ungroup()
+
+move_df <- move_percent %>%
+  arrange(move_number) %>%
+  group_by(username) %>%
+  mutate(
+    cumulative_percentage = cumsum(percentage),
+    cumulative_percentage = 100 * cumulative_percentage / max(cumulative_percentage), # Normalize to 0-100%
+    percentage_rounded = round(percentage, digits = 2)
+  ) %>%
+  ungroup()
+
+# Replace usernames with Elo ratings
+elo_ratings <- df_filtered %>%
+  distinct(username, Rating) %>%
+  arrange(Rating) %>%  # Arrange ratings in ascending order
+  mutate(Rating = factor(Rating, levels = unique(Rating)))  # Treat ratings as ordered factors
+
+move_df <- left_join(move_df, elo_ratings, by = "username") %>%
+  mutate(username = Rating)  # Replace usernames with Elo ratings
+
+# Calculate total number of unique players
+total_players <- length(levels(move_df$username))
+
+# Plot
+ggplot() +
+  geom_bar(data = move_df, aes(x = move_number, y = cumulative_percentage / total_players, fill = move_number), stat = "identity") +
+  geom_vline(xintercept = 100, color = "red", size = 1.5) +  
+  geom_line(data = move_df, aes(x = move_number, y = cumulative_percentage, color = as.factor(username)), linewidth = 1.2) +  # Convert to factor for color scale
+  labs(x = "Move Number", y = "Cumulative Percentage of Games", fill = "Games Ended at each Move Number") +
+  scale_fill_viridis_c(option = "D", limits = c(0, 200)) +
+  theme_minimal() +
+  xlim(0, 200) +
+  guides(fill = "none") +
+  scale_y_continuous(labels = scales::percent_format(scale = 1)) +
+  geom_text(data = move_df, aes(x = 100, y = max(cumulative_percentage / total_players), label = sprintf("Total: %.2f%%", sum(percentage[move_number <= 100]))), color = "orange", hjust = 1.4, vjust = -19.8, size = 5, fontface = "bold", show.legend = FALSE, inherit.aes = FALSE) +
+  geom_text(data = move_df, aes(x = 110, y = max(cumulative_percentage / total_players), label = sprintf("Total: %.2f%%", sum(percentage[move_number > 100]))), color ="steelblue", hjust = -0.3,vjust = -19.8, size = 5, fontface = "bold", show.legend = FALSE, inherit.aes = FALSE) +
+  theme(plot.margin = margin(20, 10, 10, 10, "pt")) +  # Add more space at the top
+  scale_color_manual(values = c("black", "blue", "red", "green", "purple", "orange", "brown", "pink", "yellow", "cyan", "magenta"),
+                     labels = c("400", "600", "1200", "1600", "1500", "2200", "2200 Titled", "2551","2660 Titled", "3200 Titled", "3200 Titled")) +  # Specify legend title
+  guides(color = guide_legend(title = "Elo Ratings"))  # Specify legend title
+
+
+
+```
+
+```{r}
+library(dplyr)
+library(dplyr)
+
+# Assuming df3 contains the relevant data
+summary_df <- df3 %>%
+  group_by(username) %>%
+  summarize(
+    total_entries = n(),                                                   # Total number of entries for each username
+    mean_value = round(mean(V1, na.rm = TRUE), 2),                         # Mean value for each username in column V1
+    median_value = round(median(V1, na.rm = TRUE), 2),                     # Median value for each username in column V1
+    percentile_25 = round(quantile(V1, 0.25, na.rm = TRUE), 2),            # 25th percentile for each username in column V1
+    percentile_75 = round(quantile(V1, 0.75, na.rm = TRUE), 2),            # 75th percentile for each username in column V1
+    elo = round(first(Rating), 2)                                          # Elo rating for each username
+  ) %>%
+  arrange(elo)
+
+summary_df
+
+
+
+```
+
+```{r}
+set.seed(45)
+
+summary_df <- df3 %>%
+  group_by(username) %>%
+  summarize(
+    total_entries = n(),                                                   # Total number of entries for each username and move number
+    mean_value = round(mean(V1, na.rm = TRUE), 2),                         # Mean value for each username and move number in column V1
+    median_value = round(median(V1, na.rm = TRUE), 2),                     # Median value for each username and move number in column V1
+    percentile_25 = round(quantile(V1, 0.25, na.rm = TRUE), 2),            # 25th percentile for each username and move number in column V1
+    percentile_75 = round(quantile(V1, 0.75, na.rm = TRUE), 2),            # 75th percentile for each username and move number in column V1
+    elo = round(first(Rating), 2)                                          # Elo rating for each username and move number
+  ) %>%
+  arrange(elo)
+
+# Load your data
+merged_df <- summary_df
+
+# Select relevant columns for clustering
+clustering_data <- merged_df[, c("mean_value", "median_value", "percentile_25", "percentile_75", "elo")]
+
+# Scale the data
+scaled_data <- scale(clustering_data)
+
+# Function to calculate WCSS for a given number of clusters (k)
+calculate_wcss <- function(data, k) {
+  kmeans_model <- kmeans(data, centers = k)
+  return(kmeans_model$tot.withinss)
+}
+
+# Calculate WCSS for different values of k
+k_values <- 1:10  # You can adjust the range of k values as needed
+wcss_values <- sapply(k_values, function(k) calculate_wcss(scaled_data, k))
+
+# Plot the elbow curve
+plot(k_values, wcss_values, type = "b", 
+     xlab = "Number of Clusters (k)", ylab = "Within-Cluster Sum of Squares (WCSS)",
+     main = "Elbow Curve for Optimal k")
+
+# Find the optimal k using the elbow method
+optimal_k <- which(diff(wcss_values) < 0.05 * max(abs(diff(wcss_values))))[1] + 1
+cat("Optimal number of clusters (k) based on the elbow method:", optimal_k, "\n")
+
+k <- optimal_k
+kmeans_result <- kmeans(na.omit(scale(clustering_data)), centers = k)
+
+# Extract the cluster assignments
+cluster_assignments <- kmeans_result$cluster
+
+# Add the cluster assignments to the original dataframe
+clustering_data$cluster <- cluster_assignments
+
+ggplot(clustering_data, aes(x = median_value, y = elo, color = factor(cluster))) +
+  geom_point(size = 5) +  # Use geom_point instead of geom_jitter and increase point size
+  scale_color_discrete(name = "Cluster") +
+  labs(title = "K-means Clustering Results", x = "Median Time Per Move", y = "elo")
+
+# Extract cluster centers
+cluster_centers <- kmeans_result$centers
+
+# Display cluster centers
+print(cluster_centers)
+
+
+# Filter the original data based on cluster assignments
+clustered_data <- cbind(merged_df, cluster = cluster_assignments)
+
+
+
+
+```
+```{r}
+# Load necessary libraries
+library(GGally)
+
+# Create pairplot
+ggpairs(clustered_data, 
+        columns = c("elo", colnames(clustered_data)[!colnames(clustered_data) %in% c("elo", "cluster")]),
+        mapping = aes(color = factor(cluster)),
+        title = "Pairplot of Variables vs. Elo by Cluster")
+
+
+
+```
+
+
+```{r}
+#IN THEORY THIS WORKS.
+#Dont have the hardware to prove it though
+
+# Load the required library
+library(randomForest)
+
+df4<-df
+
+df4$TimeFormat <- as.factor(df4$TimeFormat)
+df4$username <- as.factor(df4$username)
+# Split the dataset into features (X) and target variable (y)
+X <- df4[, c('Rating', 'V1', 'game_number', 'move_number','TimeFormat')]
+y <- df4$username
+
+# Split the data into training and testing sets
+set.seed(42) # For reproducibility
+train_indices <- sample(1:nrow(df4), 0.8 * nrow(df4))
+X_train <- X[train_indices, ]
+y_train <- y[train_indices]
+X_test <- X[-train_indices, ]
+y_test <- y[-train_indices]
+
+# Train the Random Forest classifier
+rf_model <- randomForest(x = X_train, y = y_train, ntree = 100)
+
+# Make predictions on the test set
+predictions <- predict(rf_model, newdata = X_test)
+
+# Calculate the accuracy of the model
+accuracy <- mean(predictions == y_test)
+print(paste("Accuracy:", accuracy))
+
+
+```
