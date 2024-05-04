@@ -68,5 +68,41 @@ This R script performs analysis on chess game data obtained from the Chess.com A
 - Make sure to adjust the list of usernames and any other parameters as needed.
 - Some parts of the code may require specific data files or APIs to be accessible.
 - Results and visualizations may vary based on the input data and parameters used.
+- Games with incriment can have a negative time spent per move.
+
+
+Certainly! Here's the formatted explanation for the `subtract_time` function in the README, along with the explanation for other custom functions in the code:
 
 ---
+
+## Custom Functions
+
+### 1. `subtract_time`
+
+**Purpose:** Calculate the amount of time spent per move in a chess game.
+
+**Arguments:**
+- `set_value`: Reference time (HH:MM format) at the beginning of a game or after each move.
+- `variable`: Time (HH:MM format) recorded at each move.
+
+**Functionality:**
+1. Convert the `set_value` and `variable` into POSIXct (date-time) objects using `as.POSIXct`.
+2. Convert the POSIXct objects into numeric values representing seconds since the Unix epoch using `as.numeric`.
+3. Subtract `variable_time` from `set_time` to calculate the elapsed time between moves.
+4. Return the time difference (`result_time`) in seconds.
+
+**Return Value:** Time spent per move in seconds.
+
+### 2. `reset_game_number`
+
+**Purpose:** Reset the game number for each user in the dataset.
+
+**Arguments:**
+- `data`: Dataset containing the move number and game number.
+
+**Functionality:**
+1. Group the dataset by username.
+2. Update the game number if the move number is 1 or if the move number is less than the previous move number.
+3. Return the dataset with updated game numbers.
+
+**Return Value:** Dataset with updated game numbers.
